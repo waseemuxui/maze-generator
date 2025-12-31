@@ -72,7 +72,6 @@ const App: React.FC = () => {
       ctx.lineWidth = cfg.wallThickness;
       ctx.lineCap = 'round';
       
-      // Draw grid walls
       p.grid?.forEach((row: any) => row.forEach((cell: any) => {
         if (!cell.isInside) return;
         const x = cell.x * cellSize, y = cell.y * cellSize;
@@ -82,20 +81,16 @@ const App: React.FC = () => {
         if (cell.walls.left) { ctx.beginPath(); ctx.moveTo(x, y + cellSize); ctx.lineTo(x, y); ctx.stroke(); }
       }));
       
-      // Draw start/end marks
       if (cfg.showMarks && p.start && p.end) {
         ctx.font = `bold ${cellSize * 0.7}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
         ctx.fillStyle = theme.startColor;
         ctx.fillText('S', p.start.x * cellSize + cellSize/2, p.start.y * cellSize + cellSize/2);
-        
         ctx.fillStyle = theme.endColor;
         ctx.fillText('E', p.end.x * cellSize + cellSize/2, p.end.y * cellSize + cellSize/2);
       }
 
-      // Draw solution
       if (forceSolution && p.solution) {
         ctx.strokeStyle = theme.pathColor;
         ctx.lineWidth = cfg.pathThickness;
@@ -234,37 +229,52 @@ const App: React.FC = () => {
       if (i > 0) doc.addPage();
       const p = batchPuzzles[i];
       
+      // Branding: Header
       doc.setFontSize(8); doc.setTextColor(150);
-      doc.text(config.pdfHeader, width/2, 10, { align: 'center' });
+      doc.text(config.pdfHeader, width/2, 12, { align: 'center' });
       
+      // Title
       doc.setFontSize(22); doc.setTextColor(30);
-      doc.text(`${p.type.toUpperCase()} #${i+1}`, margin, 30);
+      doc.text(`${p.type.toUpperCase()} CHALLENGE #${i+1}`, margin, 30);
       
+      // Main Puzzle Content
       drawToCanvas(offCtx, p, config, currentTheme, false);
       doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 40, canvasSize, canvasSize);
       
+      // Branding: Credits & Footer
+      doc.setFontSize(9); doc.setTextColor(100);
+      doc.text(config.pdfCredits, width/2, height - 18, { align: 'center' });
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text(config.pdfFooter, width/2, height - 10, { align: 'center' });
+
       if (config.showSignatureFields) {
         doc.setFontSize(10); doc.setTextColor(100);
         doc.text("Explorer Name: _______________________", margin, height - 30);
         doc.text("Date: ___________", width - margin - 40, height - 30);
       }
       
-      doc.setFontSize(8); doc.text(config.pdfFooter, width/2, height - 10, { align: 'center' });
       setProgress(50 + Math.round(((i + 1) / (batchPuzzles.length * 2)) * 100));
     }
 
+    // Solutions Section
     doc.addPage();
-    doc.setFontSize(24);
-    doc.text("SOLUTIONS", width/2, height/2, { align: 'center' });
+    doc.setFontSize(24); doc.setTextColor(30);
+    doc.text("SOLUTIONS HANDBOOK", width/2, height/2, { align: 'center' });
     
     for (let i = 0; i < batchPuzzles.length; i++) {
       doc.addPage();
       const p = batchPuzzles[i];
-      doc.setFontSize(14);
-      doc.text(`Solution for #${i+1}`, margin, 20);
+      doc.setFontSize(14); doc.setTextColor(30);
+      doc.text(`Solution for Puzzle #${i+1}`, margin, 20);
+      
       drawToCanvas(offCtx, p, config, currentTheme, true);
       doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 30, canvasSize, canvasSize);
-      doc.text(config.pdfCredits, width/2, height - 10, { align: 'center' });
+      
+      // Credits & Footer on solution page too
+      doc.setFontSize(9); doc.setTextColor(120);
+      doc.text(config.pdfCredits, width/2, height - 18, { align: 'center' });
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text(config.pdfFooter, width/2, height - 10, { align: 'center' });
     }
 
     doc.save(`puzzle-collection-${Date.now()}.pdf`);
@@ -310,16 +320,10 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl">
-            <button 
-              onClick={() => setCurrentView('puzzle')}
-              className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all duration-300 flex items-center gap-2 ${currentView === 'puzzle' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
+            <button onClick={() => setCurrentView('puzzle')} className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all duration-300 flex items-center gap-2 ${currentView === 'puzzle' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
               <i className="fas fa-eye"></i> CHALLENGE
             </button>
-            <button 
-              onClick={() => setCurrentView('solution')}
-              className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all duration-300 flex items-center gap-2 ${currentView === 'solution' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
+            <button onClick={() => setCurrentView('solution')} className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all duration-300 flex items-center gap-2 ${currentView === 'solution' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
               <i className="fas fa-key"></i> SOLUTION
             </button>
           </div>
@@ -333,32 +337,32 @@ const App: React.FC = () => {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 p-12 overflow-y-auto bg-slate-50 flex flex-col items-center gap-8 relative pattern-dots">
+          <div className="flex-1 p-12 overflow-y-auto bg-slate-50 flex flex-col items-center gap-8 relative">
             {isGenerating && (
               <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-6">
                 <div className="relative">
                   <div className="w-20 h-20 border-8 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
                   <div className="absolute inset-0 flex items-center justify-center font-black text-xs text-indigo-600">{progress ?? 0}%</div>
                 </div>
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center text-center">
                   <span className="text-slate-900 font-black uppercase tracking-[0.3em] text-sm">Forging Masterpiece</span>
-                  <span className="text-slate-400 text-xs font-bold mt-1">Please wait while the engine computes paths...</span>
+                  <span className="text-slate-400 text-xs font-bold mt-1 max-w-[200px]">Computing paths and assembling bundle...</span>
                 </div>
               </div>
             )}
             
-            <div className="bg-white p-16 shadow-[0_30px_100px_-10px_rgba(0,0,0,0.15)] rounded-lg border border-slate-200 relative max-w-[750px] w-full aspect-square flex items-center justify-center transform transition-transform duration-500 hover:scale-[1.02]">
+            <div className="bg-white p-16 shadow-[0_30px_100px_-10px_rgba(0,0,0,0.15)] rounded-lg border border-slate-200 relative max-w-[750px] w-full aspect-square flex items-center justify-center transform transition-transform duration-500 hover:scale-[1.01]">
               <div className="absolute top-6 left-10 flex flex-col">
                 <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">{config.pdfHeader}</span>
                 <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">Edition #{(config.seed.length % 999) + 1} • {config.difficulty} Mode</span>
               </div>
+              <canvas ref={canvasRef} className="max-w-full max-h-full h-auto w-auto" />
               <div className="absolute bottom-6 right-10 flex items-center gap-4">
                  <div className="text-right">
-                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Architect Signature</div>
-                    <div className="h-6 w-32 border-b-2 border-slate-100 italic text-[10px] text-slate-300 mt-1 pl-2">PuzzlePro Engine</div>
+                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{config.pdfFooter}</div>
+                    <div className="h-6 w-32 border-b-2 border-slate-100 italic text-[10px] text-slate-300 mt-1 pl-2">{config.pdfCredits}</div>
                  </div>
               </div>
-              <canvas ref={canvasRef} className="max-w-full max-h-full h-auto w-auto" />
             </div>
 
             <div className="w-full max-w-[750px] bg-indigo-900 text-white p-8 rounded-3xl shadow-2xl flex items-start gap-6 border-4 border-white">
@@ -381,11 +385,7 @@ const App: React.FC = () => {
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Master Difficulty</label>
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
                   {['easy', 'medium', 'hard'].map(d => (
-                    <button 
-                      key={d} 
-                      onClick={() => setConfig({...config, difficulty: d as Difficulty})} 
-                      className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all duration-300 ${config.difficulty === d ? 'bg-white shadow-xl text-indigo-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
+                    <button key={d} onClick={() => setConfig({...config, difficulty: d as Difficulty})} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all duration-300 ${config.difficulty === d ? 'bg-white shadow-xl text-indigo-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
                       {d.toUpperCase()}
                     </button>
                   ))}
@@ -399,35 +399,53 @@ const App: React.FC = () => {
                 </div>
                 <input type="range" min="10" max="60" step="5" value={config.size} onChange={e => setConfig({...config, size: parseInt(e.target.value)})} className="w-full h-1.5 bg-slate-100 appearance-none rounded-lg accent-indigo-600 cursor-pointer" />
               </div>
+            </section>
 
-              {(config.generatorType === 'maze' || config.generatorType === 'maze2') && (
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Silhouette Geometry</label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {SHAPES.map(s => (
-                      <button 
-                        key={s.id} 
-                        onClick={() => setConfig({...config, shape: s.id})} 
-                        title={s.id}
-                        className={`aspect-square rounded-xl border-2 flex items-center justify-center transition-all duration-200 ${config.shape === s.id ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg shadow-indigo-100' : 'border-slate-100 text-slate-300 hover:border-slate-200 hover:text-slate-400'}`}
-                      >
-                        <i className={`fas ${s.icon} text-sm`}></i>
-                      </button>
-                    ))}
+            <section className="space-y-6">
+              <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4 flex items-center justify-between">
+                <span>Branding</span>
+                <i className="fas fa-fingerprint text-indigo-500"></i>
+              </h3>
+              <div className="space-y-4">
+                {[
+                  { label: 'PDF Header', key: 'pdfHeader', icon: 'fa-heading' },
+                  { label: 'PDF Footer', key: 'pdfFooter', icon: 'fa-shoe-prints' },
+                  { label: 'PDF Credits / Copyright', key: 'pdfCredits', icon: 'fa-copyright' }
+                ].map(field => (
+                  <div key={field.key} className="space-y-1.5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <i className={`fas ${field.icon} text-[8px]`}></i> {field.label}
+                    </span>
+                    <input 
+                      type="text" 
+                      value={(config as any)[field.key]} 
+                      onChange={e => setConfig({...config, [field.key]: e.target.value} as any)}
+                      placeholder={`Enter ${field.label}...`}
+                      className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-700 transition-all" 
+                    />
                   </div>
+                ))}
+                <div className="flex items-center gap-3 pt-2">
+                   <input 
+                    type="checkbox" 
+                    id="sigToggle"
+                    checked={config.showSignatureFields} 
+                    onChange={e => setConfig({...config, showSignatureFields: e.target.checked})}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                   />
+                   <label htmlFor="sigToggle" className="text-[10px] font-black text-slate-500 uppercase cursor-pointer">Include Explorer Fields</label>
                 </div>
-              )}
+              </div>
             </section>
 
             <section className="space-y-6">
               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Bulk Production</h3>
               <div className="space-y-4">
                 <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <span>Quantity in PDF</span>
-                  <span className="text-emerald-600 font-black">{config.bulkCount} Puzzles</span>
+                  <span>Puzzles per Bundle</span>
+                  <span className="text-emerald-600 font-black">{config.bulkCount} Units</span>
                 </div>
                 <input type="range" min="1" max="50" step="1" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value)})} className="w-full h-1.5 bg-slate-100 appearance-none rounded-lg accent-emerald-500 cursor-pointer" />
-                <p className="text-[9px] text-slate-400 font-bold leading-tight">Solutions will be automatically bundled at the end of the PDF for print convenience.</p>
               </div>
             </section>
 
@@ -435,11 +453,7 @@ const App: React.FC = () => {
               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Theme Engine</h3>
               <div className="grid grid-cols-2 gap-4">
                 {MAZE_THEMES.map(t => (
-                  <button 
-                    key={t.id} 
-                    onClick={() => setConfig({...config, themeId: t.id})}
-                    className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${config.themeId === t.id ? 'border-indigo-600 bg-indigo-50 shadow-xl' : 'border-slate-50 hover:border-slate-200'}`}
-                  >
+                  <button key={t.id} onClick={() => setConfig({...config, themeId: t.id})} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${config.themeId === t.id ? 'border-indigo-600 bg-indigo-50 shadow-xl' : 'border-slate-50 hover:border-slate-200'}`}>
                     <div className="w-full h-12 rounded-xl shadow-inner flex items-center justify-center" style={{ backgroundColor: t.wallColor }}>
                        <i className={`fas ${t.icon} text-white/30 text-xl`}></i>
                     </div>
@@ -449,7 +463,7 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            <section className="space-y-4 pt-4">
+            <section className="space-y-4 pt-4 pb-8">
                <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em]">Export Formats</h3>
                <div className="grid grid-cols-1 gap-3">
                   <button onClick={downloadPDF} className="w-full flex items-center justify-between px-6 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100">

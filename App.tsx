@@ -29,11 +29,27 @@ const MAZE_THEMES: MazeTheme[] = [
   { id: 'cyberpunk', name: 'Cyber', bgColor: '#000000', wallColor: '#06b6d4', pathColor: '#f472b6', startColor: '#4ade80', endColor: '#fbbf24', icon: 'fa-microchip' },
   { id: 'parchment', name: 'Ancient', bgColor: '#fdf6e3', wallColor: '#586e75', pathColor: '#268bd2', startColor: '#d33682', endColor: '#859900', icon: 'fa-scroll' },
   { id: 'nightmare', name: 'Dark', bgColor: '#0f172a', wallColor: '#f43f5e', pathColor: '#f8fafc', startColor: '#a855f7', endColor: '#ffffff', icon: 'fa-ghost' },
+  { id: 'enchanted', name: 'Enchanted', bgColor: '#ecfdf5', wallColor: '#065f46', pathColor: '#d97706', startColor: '#10b981', endColor: '#f59e0b', icon: 'fa-tree' },
+  { id: 'ocean', name: 'Ocean', bgColor: '#f0f9ff', wallColor: '#075985', pathColor: '#2dd4bf', startColor: '#0ea5e9', endColor: '#ffffff', icon: 'fa-water' },
+  { id: 'sunset', name: 'Sunset', bgColor: '#fff7ed', wallColor: '#9a3412', pathColor: '#7c3aed', startColor: '#f97316', endColor: '#6366f1', icon: 'fa-cloud-sun' },
+  { id: 'candy', name: 'Candy', bgColor: '#fff1f2', wallColor: '#be123c', pathColor: '#fb7185', startColor: '#f43f5e', endColor: '#ec4899', icon: 'fa-candy-cane' },
 ];
 
 const SHAPES: { id: MazeShape; icon: string }[] = [
-  { id: 'square', icon: 'fa-square' }, { id: 'circle', icon: 'fa-circle' }, { id: 'star', icon: 'fa-star' },
-  { id: 'heart', icon: 'fa-heart' }, { id: 'moon', icon: 'fa-moon' }, { id: 'arrow', icon: 'fa-arrow-up' },
+  { id: 'square', icon: 'fa-square' }, 
+  { id: 'circle', icon: 'fa-circle' }, 
+  { id: 'triangle', icon: 'fa-caret-up' },
+  { id: 'diamond', icon: 'fa-diamond' },
+  { id: 'star', icon: 'fa-star' },
+  { id: 'heart', icon: 'fa-heart' }, 
+  { id: 'moon', icon: 'fa-moon' }, 
+  { id: 'arrow', icon: 'fa-arrow-up' },
+  { id: 'hexagon', icon: 'fa-hexagon' },
+  { id: 'clover', icon: 'fa-clover' },
+  { id: 'shield', icon: 'fa-shield-halved' },
+  { id: 'bolt', icon: 'fa-bolt' },
+  { id: 'donut', icon: 'fa-circle-dot' },
+  { id: 'cross', icon: 'fa-plus' },
 ];
 
 const App: React.FC = () => {
@@ -229,19 +245,15 @@ const App: React.FC = () => {
       if (i > 0) doc.addPage();
       const p = batchPuzzles[i];
       
-      // Branding: Header
       doc.setFontSize(8); doc.setTextColor(150);
       doc.text(config.pdfHeader, width/2, 12, { align: 'center' });
       
-      // Title
       doc.setFontSize(22); doc.setTextColor(30);
       doc.text(`${p.type.toUpperCase()} CHALLENGE #${i+1}`, margin, 30);
       
-      // Main Puzzle Content
       drawToCanvas(offCtx, p, config, currentTheme, false);
       doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 40, canvasSize, canvasSize);
       
-      // Branding: Credits & Footer
       doc.setFontSize(9); doc.setTextColor(100);
       doc.text(config.pdfCredits, width/2, height - 18, { align: 'center' });
       doc.setFontSize(8); doc.setTextColor(150);
@@ -256,7 +268,6 @@ const App: React.FC = () => {
       setProgress(50 + Math.round(((i + 1) / (batchPuzzles.length * 2)) * 100));
     }
 
-    // Solutions Section
     doc.addPage();
     doc.setFontSize(24); doc.setTextColor(30);
     doc.text("SOLUTIONS HANDBOOK", width/2, height/2, { align: 'center' });
@@ -270,7 +281,6 @@ const App: React.FC = () => {
       drawToCanvas(offCtx, p, config, currentTheme, true);
       doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 30, canvasSize, canvasSize);
       
-      // Credits & Footer on solution page too
       doc.setFontSize(9); doc.setTextColor(120);
       doc.text(config.pdfCredits, width/2, height - 18, { align: 'center' });
       doc.setFontSize(8); doc.setTextColor(150);
@@ -399,6 +409,24 @@ const App: React.FC = () => {
                 </div>
                 <input type="range" min="10" max="60" step="5" value={config.size} onChange={e => setConfig({...config, size: parseInt(e.target.value)})} className="w-full h-1.5 bg-slate-100 appearance-none rounded-lg accent-indigo-600 cursor-pointer" />
               </div>
+
+              {(config.generatorType === 'maze' || config.generatorType === 'maze2') && (
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Silhouette Geometry</label>
+                  <div className="grid grid-cols-5 gap-2 h-32 overflow-y-auto pr-2 custom-scrollbar">
+                    {SHAPES.map(s => (
+                      <button 
+                        key={s.id} 
+                        onClick={() => setConfig({...config, shape: s.id})} 
+                        title={s.id}
+                        className={`aspect-square rounded-xl border-2 flex items-center justify-center transition-all duration-200 ${config.shape === s.id ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg' : 'border-slate-100 text-slate-300 hover:border-slate-200'}`}
+                      >
+                        <i className={`fas ${s.icon} text-sm`}></i>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="space-y-6">
@@ -425,27 +453,6 @@ const App: React.FC = () => {
                     />
                   </div>
                 ))}
-                <div className="flex items-center gap-3 pt-2">
-                   <input 
-                    type="checkbox" 
-                    id="sigToggle"
-                    checked={config.showSignatureFields} 
-                    onChange={e => setConfig({...config, showSignatureFields: e.target.checked})}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
-                   />
-                   <label htmlFor="sigToggle" className="text-[10px] font-black text-slate-500 uppercase cursor-pointer">Include Explorer Fields</label>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-6">
-              <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Bulk Production</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <span>Puzzles per Bundle</span>
-                  <span className="text-emerald-600 font-black">{config.bulkCount} Units</span>
-                </div>
-                <input type="range" min="1" max="50" step="1" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value)})} className="w-full h-1.5 bg-slate-100 appearance-none rounded-lg accent-emerald-500 cursor-pointer" />
               </div>
             </section>
 
@@ -454,8 +461,10 @@ const App: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 {MAZE_THEMES.map(t => (
                   <button key={t.id} onClick={() => setConfig({...config, themeId: t.id})} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${config.themeId === t.id ? 'border-indigo-600 bg-indigo-50 shadow-xl' : 'border-slate-50 hover:border-slate-200'}`}>
-                    <div className="w-full h-12 rounded-xl shadow-inner flex items-center justify-center" style={{ backgroundColor: t.wallColor }}>
-                       <i className={`fas ${t.icon} text-white/30 text-xl`}></i>
+                    <div className="w-full h-12 rounded-xl shadow-inner flex items-center justify-center overflow-hidden" style={{ backgroundColor: t.wallColor }}>
+                       <div className="w-full h-full opacity-10 flex items-center justify-center transform group-hover:scale-110 transition-transform">
+                        <i className={`fas ${t.icon} text-white text-2xl`}></i>
+                       </div>
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${config.themeId === t.id ? 'text-indigo-700' : 'text-slate-500'}`}>{t.name}</span>
                   </button>
@@ -464,25 +473,29 @@ const App: React.FC = () => {
             </section>
 
             <section className="space-y-4 pt-4 pb-8">
-               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em]">Export Formats</h3>
+               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em]">Batch & Format</h3>
                <div className="grid grid-cols-1 gap-3">
-                  <button onClick={downloadPDF} className="w-full flex items-center justify-between px-6 py-4 bg-emerald-600 text-white rounded-2xl text-xs font-black hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100">
-                    <div className="flex items-center gap-3"><i className="fas fa-file-pdf text-lg"></i> PDF BUNDLE</div>
-                    <span className="bg-white/20 px-2 py-0.5 rounded-lg text-[9px]">{config.bulkCount}x</span>
-                  </button>
+                  <div className="flex justify-between items-center bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black text-emerald-800 uppercase">Quantity</span>
+                      <input type="number" min="1" max="50" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value) || 1})} className="w-12 bg-transparent text-emerald-700 font-black outline-none" />
+                    </div>
+                    <button onClick={downloadPDF} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100">DOWNLOAD PDF</button>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => downloadImage('png')} className="flex items-center justify-center gap-3 px-4 py-4 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black hover:bg-slate-200 transition-all">
-                      <i className="fas fa-file-image"></i> PNG
-                    </button>
-                    <button onClick={() => downloadImage('jpeg')} className="flex items-center justify-center gap-3 px-4 py-4 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black hover:bg-slate-200 transition-all">
-                      <i className="fas fa-file-image"></i> JPEG
-                    </button>
+                    <button onClick={() => downloadImage('png')} className="flex items-center justify-center gap-3 px-4 py-4 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black hover:bg-slate-200 transition-all">PNG</button>
+                    <button onClick={() => downloadImage('jpeg')} className="flex items-center justify-center gap-3 px-4 py-4 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black hover:bg-slate-200 transition-all">JPEG</button>
                   </div>
                </div>
             </section>
           </aside>
         </div>
       </main>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      `}</style>
     </div>
   );
 };

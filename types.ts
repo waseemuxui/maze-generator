@@ -5,9 +5,9 @@ export type GeneratorType =
   | 'wordscramble' | 'wordsearch' | 'twistedword' 
   | 'bridges' | 'bauhaus' | 'kakuro' | 'cryptogram';
 
-export type MazeShape = 'square' | 'circle' | 'diamond' | 'cross' | 'triangle' | 'star' | 'heart' | 'donut' | 'hexagon' | 'octagon' | 'moon' | 'arrow';
+export type MazeShape = 'square' | 'circle' | 'diamond' | 'cross' | 'triangle' | 'star' | 'heart' | 'donut' | 'hexagon' | 'octagon' | 'moon' | 'arrow' | 'clover' | 'shield' | 'bolt';
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type ThemeId = 'classic' | 'nightmare' | 'enchanted' | 'cyberpunk' | 'parchment' | 'ocean';
+export type ThemeId = 'classic' | 'nightmare' | 'enchanted' | 'cyberpunk' | 'parchment' | 'ocean' | 'sunset' | 'candy';
 
 export interface MazeTheme {
   id: ThemeId;
@@ -20,7 +20,6 @@ export interface MazeTheme {
   icon: string;
 }
 
-// Fix: Export Cell interface used by maze logic and rendering
 export interface Cell {
   x: number;
   y: number;
@@ -37,7 +36,6 @@ export interface Cell {
 export interface AppConfig {
   generatorType: GeneratorType;
   size: number;
-  // Fix: Added cellSize to AppConfig
   cellSize: number;
   difficulty: Difficulty;
   shape: MazeShape;
@@ -67,7 +65,6 @@ export interface AppConfig {
   gridSize: number;
 }
 
-// Fix: Export MazeConfig as an alias for AppConfig
 export type MazeConfig = AppConfig;
 
 export interface Point { x: number; y: number; }
@@ -81,5 +78,5 @@ export interface GeneratedPuzzle {
   story: string;
   clues?: string[];
   config: AppConfig;
-  renderData?: any; // For patterns like Tartan/Bauhaus
+  renderData?: any; 
 }

@@ -16,16 +16,19 @@ export const isInsideShape = (x: number, y: number, shape: MazeShape, size: numb
     case 'star': {
       const angle = Math.atan2(dy, dx);
       const s = Math.abs(Math.cos(angle * 2.5));
-      return r <= 0.4 + 0.6 * s;
+      return r <= 0.3 + 0.7 * s;
     }
     case 'heart': {
-      const heartA = Math.atan2(dy, dx);
-      const heartScale = (Math.sin(heartA) * Math.sqrt(Math.abs(Math.cos(heartA)))) / (Math.sin(heartA) + 1.4) - 2 * Math.sin(heartA) + 2;
-      return r <= heartScale * 0.3;
+      const a = Math.atan2(dy, dx - 0.0001); // avoid div zero
+      const heartR = (Math.sin(a) * Math.sqrt(Math.abs(Math.cos(a)))) / (Math.sin(a) + 1.4) - 2 * Math.sin(a) + 2;
+      return r <= heartR * 0.3;
     }
     case 'donut': return r <= 1.0 && r >= 0.4;
     case 'hexagon': return Math.abs(dx) <= 0.866 && Math.abs(dy) <= 1.0 && Math.abs(dx) * 0.5 + Math.abs(dy) * 0.866 <= 0.866;
-    case 'octagon': return Math.abs(dx) <= 1.0 && Math.abs(dy) <= 1.0 && Math.abs(dx) + Math.abs(dy) <= 1.5;
+    case 'octagon': {
+      const oct = Math.abs(dx) <= 1.0 && Math.abs(dy) <= 1.0 && (Math.abs(dx) + Math.abs(dy) <= 1.4);
+      return oct;
+    }
     case 'moon': {
       const isMainCircle = r <= 1.0;
       const distToCrescent = Math.sqrt(Math.pow(dx - 0.4, 2) + Math.pow(dy - 0.2, 2));
@@ -33,8 +36,24 @@ export const isInsideShape = (x: number, y: number, shape: MazeShape, size: numb
     }
     case 'arrow': {
       const isHead = dy < -0.2 && Math.abs(dx) <= (dy + 1.0) / 0.8;
-      const isShaft = dy >= -0.2 && Math.abs(dx) < 0.3 && dy < 1.0;
+      const isShaft = dy >= -0.2 && Math.abs(dx) < 0.3 && dy < 0.9;
       return isHead || isShaft;
+    }
+    case 'clover': {
+      const angle = Math.atan2(dy, dx);
+      const cloverR = 0.5 + 0.5 * Math.abs(Math.cos(2 * angle));
+      return r <= cloverR * 0.9;
+    }
+    case 'shield': {
+      if (Math.abs(dx) > 0.8) return false;
+      if (dy < 0) return true; // Top rectangle part
+      return dy <= 1.0 - Math.abs(dx); // Pointed bottom part
+    }
+    case 'bolt': {
+      // Piece-wise definition of a lightning bolt
+      const inTop = dy < 0 && dy > -0.8 && dx > -0.6 && dx < 0.2 && (dx - dy < 0.4);
+      const inBottom = dy >= 0 && dy < 0.8 && dx > -0.2 && dx < 0.6 && (dx - dy > -0.4);
+      return inTop || inBottom;
     }
     default: return true;
   }
@@ -94,7 +113,6 @@ export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point
   }
 
   // Braiding: Remove some dead ends based on difficulty
-  // Easy: ~50% dead ends removed, Medium: ~20%, Hard: 0%
   const braidChance = difficulty === 'easy' ? 0.5 : difficulty === 'medium' ? 0.2 : 0;
   if (braidChance > 0) {
     grid.flat().forEach(cell => {

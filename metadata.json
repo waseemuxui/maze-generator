@@ -1,5 +1,5 @@
 {
-  "name": "Copy of Labyrinth Architect",
-  "description": "A sophisticated maze generator capable of creating intricate puzzles in various shapes and difficulties, featuring real-time AI-generated thematic stories for each labyrinth.",
+  "name": "Puzzle Architect Pro",
+  "description": "A comprehensive workbench for generating 16 different types of printable puzzles, logic games, and artistic patterns with procedural narration and bulk PDF export capabilities.",
   "requestFramePermissions": []
 }

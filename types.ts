@@ -1,20 +1,12 @@
 
-export type MazeShape = 
-  | 'square' 
-  | 'circle' 
-  | 'diamond' 
-  | 'cross' 
-  | 'triangle' 
-  | 'star' 
-  | 'heart'
-  | 'donut'
-  | 'hexagon'
-  | 'octagon'
-  | 'moon'
-  | 'arrow';
+export type GeneratorType = 
+  | 'maze' | 'maze2' | 'bingo' | 'crossword' | 'kenken' 
+  | 'magicsquare' | 'starbattle' | 'sudoku' | 'tartan' 
+  | 'wordscramble' | 'wordsearch' | 'twistedword' 
+  | 'bridges' | 'bauhaus' | 'kakuro' | 'cryptogram';
 
+export type MazeShape = 'square' | 'circle' | 'diamond' | 'cross' | 'triangle' | 'star' | 'heart' | 'donut' | 'hexagon' | 'octagon' | 'moon' | 'arrow';
 export type Difficulty = 'easy' | 'medium' | 'hard';
-
 export type ThemeId = 'classic' | 'nightmare' | 'enchanted' | 'cyberpunk' | 'parchment' | 'ocean';
 
 export interface MazeTheme {
@@ -28,25 +20,7 @@ export interface MazeTheme {
   icon: string;
 }
 
-export interface MazeConfig {
-  size: number;
-  cellSize: number;
-  shape: MazeShape;
-  difficulty: Difficulty;
-  showSolution: boolean;
-  showMarks: boolean;
-  seed: string;
-  themeId: ThemeId;
-  wallThickness: number;
-  pathThickness: number;
-  pdfHeader: string;
-  pdfFooter: string;
-  pdfCredits: string;
-  showSignatureFields: boolean;
-  randomizeShapes: boolean;
-  randomizeDifficulty: boolean;
-}
-
+// Fix: Export Cell interface used by maze logic and rendering
 export interface Cell {
   x: number;
   y: number;
@@ -58,19 +32,54 @@ export interface Cell {
     left: boolean;
   };
   isInside: boolean;
-  isPath?: boolean;
 }
 
-export interface Point {
-  x: number;
-  y: number;
+export interface AppConfig {
+  generatorType: GeneratorType;
+  size: number;
+  // Fix: Added cellSize to AppConfig
+  cellSize: number;
+  difficulty: Difficulty;
+  shape: MazeShape;
+  themeId: ThemeId;
+  seed: string;
+  
+  // Display Options
+  showSolution: boolean;
+  showMarks: boolean;
+  wallThickness: number;
+  pathThickness: number;
+
+  // PDF & Export
+  pdfHeader: string;
+  pdfFooter: string;
+  pdfCredits: string;
+  showSignatureFields: boolean;
+  
+  // Batch Options
+  bulkCount: number;
+  randomizeShapes: boolean;
+  randomizeDifficulty: boolean;
+  randomizeGenerators: boolean;
+
+  // Generator Specifics
+  words: string[];
+  gridSize: number;
 }
 
-export interface GeneratedMaze {
-  grid: Cell[][];
-  start: Point;
-  end: Point;
-  solution: Point[];
+// Fix: Export MazeConfig as an alias for AppConfig
+export type MazeConfig = AppConfig;
+
+export interface Point { x: number; y: number; }
+
+export interface GeneratedPuzzle {
+  type: GeneratorType;
+  grid?: any;
+  solution?: any;
+  start?: Point;
+  end?: Point;
   story: string;
-  config: MazeConfig;
+  clues?: string[];
+  config: AppConfig;
+  renderData?: any; // For patterns like Tartan/Bauhaus
 }

@@ -1,8 +1,7 @@
 
 import { AppConfig, GeneratedPuzzle, Point, MazeShape, Difficulty, GeneratorType } from '../types';
-import { isInsideShape } from './mazeLogic';
+import { isInsideShape, generateMaze } from './mazeLogic';
 
-// Fix: Explicitly return Omit<GeneratedPuzzle, 'story'> to avoid type widening issues with GeneratorType
 export const generatePuzzle = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   switch (config.generatorType) {
     case 'bingo': return generateBingo(config);
@@ -25,7 +24,6 @@ export const generatePuzzle = (config: AppConfig): Omit<GeneratedPuzzle, 'story'
   }
 };
 
-// Fix: Added return type to generateBingo
 const generateBingo = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const grid = Array.from({ length: 5 }, () => Array(5).fill(0));
   const columns = [
@@ -45,7 +43,6 @@ const generateBingo = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   return { type: config.generatorType, grid, config };
 };
 
-// Fix: Added return type to generateSudoku
 const generateSudoku = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const base = [
     [5,3,4,6,7,8,9,1,2], [6,7,2,1,9,5,3,4,8], [1,9,8,3,4,2,5,6,7],
@@ -62,7 +59,6 @@ const generateSudoku = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   return { type: config.generatorType, grid, solution: base, config };
 };
 
-// Fix: Added return type to generateWordSearch
 const generateWordSearch = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const size = config.size || 15;
   const grid = Array.from({ length: size }, () => Array(size).fill(''));
@@ -101,7 +97,6 @@ const generateWordSearch = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> =
   return { type: config.generatorType, grid, solution, config };
 };
 
-// Fix: Added return type to generateWordScramble
 const generateWordScramble = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const words = config.words.length > 0 ? config.words : ['labyrinth', 'architect', 'complexity', 'solution', 'adventure'];
   const grid = words.map(w => {
@@ -115,7 +110,6 @@ const generateWordScramble = (config: AppConfig): Omit<GeneratedPuzzle, 'story'>
   return { type: config.generatorType, grid, config };
 };
 
-// Fix: Added return type to generateMagicSquare
 const generateMagicSquare = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const n = 3;
   const grid = Array.from({ length: n }, () => Array(n).fill(0));
@@ -131,11 +125,9 @@ const generateMagicSquare = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> 
   return { type: config.generatorType, grid: displayGrid, solution: grid, config };
 };
 
-// Fix: Added return type to generateCrossword
 const generateCrossword = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const size = 11;
   const grid = Array.from({ length: size }, () => Array(size).fill('#'));
-  // Simple "cross" pattern
   for (let i = 0; i < size; i++) {
     grid[5][i] = '';
     grid[i][5] = '';
@@ -143,7 +135,6 @@ const generateCrossword = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> =>
   return { type: config.generatorType, grid, config, clues: ['1. Across: Hidden Path', '1. Down: Deep Mystery'] };
 };
 
-// Fix: Added return type to generateTartan
 const generateTartan = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#000000', '#ffffff'];
   const stripes = Array.from({ length: 8 }, () => ({
@@ -153,11 +144,9 @@ const generateTartan = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   return { type: config.generatorType, renderData: stripes, config };
 };
 
-// Fix: Added return type to generateKenKen
 const generateKenKen = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const size = 4;
   const grid = Array.from({ length: size }, () => Array(size).fill(0));
-  // Just a simple valid Latin Square for preview
   for(let r=0; r<size; r++) for(let c=0; c<size; c++) grid[r][c] = ((r+c)%size)+1;
   const cages = [
     { cells: [[0,0], [0,1]], target: 3, op: '+' },
@@ -166,17 +155,13 @@ const generateKenKen = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   return { type: config.generatorType, grid, renderData: cages, config };
 };
 
-// Fix: Added return type to generateStarBattle
 const generateStarBattle = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const size = 8;
   const grid = Array.from({ length: size }, () => Array(size).fill(null));
-  // In a real generator, we'd place stars and generate regions. 
-  // Here we just provide a grid and some random "regions" for the UI.
   const regions = Array.from({ length: size }, (_, y) => Array.from({ length: size }, (_, x) => Math.floor((x+y)/2)));
   return { type: config.generatorType, grid, renderData: regions, config };
 };
 
-// Fix: Added return type to generateBridges
 const generateBridges = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const islands = [
     { x: 1, y: 1, val: 2 }, { x: 4, y: 1, val: 3 },
@@ -185,7 +170,6 @@ const generateBridges = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   return { type: config.generatorType, renderData: islands, config };
 };
 
-// Fix: Added return type to generateBauhaus
 const generateBauhaus = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const shapes = Array.from({ length: 15 }, () => ({
     type: ['circle', 'rect', 'poly'][Math.floor(Math.random()*3)],
@@ -197,14 +181,12 @@ const generateBauhaus = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   return { type: config.generatorType, renderData: shapes, config };
 };
 
-// Fix: Added return type to generateKakuro
 const generateKakuro = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const size = 8;
   const grid = Array.from({ length: size }, () => Array(size).fill(null));
   return { type: config.generatorType, grid, config };
 };
 
-// Fix: Added return type to generateCryptogram
 const generateCryptogram = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
   const quote = "THE ONLY WAY OUT IS THROUGH THE LABYRINTH";
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
@@ -216,63 +198,19 @@ const generateCryptogram = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> =
   return { type: config.generatorType, grid: { encoded, original: quote }, config };
 };
 
-// Fix: Added return type to generateTwistedWordSearch
 const generateTwistedWordSearch = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
-  // Logic is similar to word search but path can bend. 
-  // For the sake of the preview, we reuse wordsearch logic but tag it differently.
   const puzzle = generateWordSearch(config);
   return { ...puzzle, type: 'twistedword' };
 };
 
-// Fix: Added return type to generateMazePuzzle
 const generateMazePuzzle = (config: AppConfig): Omit<GeneratedPuzzle, 'story'> => {
-  const { size, shape } = config;
-  const grid = Array.from({ length: size }, (_, y) =>
-    Array.from({ length: size }, (_, x) => ({
-      x, y, visited: false,
-      walls: { top: true, right: true, bottom: true, left: true },
-      isInside: isInsideShape(x, y, shape, size)
-    }))
-  );
-
-  const stack: any[] = [];
-  const insideCells = grid.flat().filter(c => c.isInside);
-  if (insideCells.length === 0) return { type: config.generatorType, grid: [], start: {x:0,y:0}, end: {x:0,y:0}, solution: [], config };
-  
-  const startCell = insideCells[0];
-  startCell.visited = true;
-  stack.push(startCell);
-
-  while (stack.length > 0) {
-    const current = stack[stack.length - 1];
-    const neighbors: any[] = [];
-    const dirs: { x: number; y: number; dir: 'top'|'right'|'bottom'|'left'; opp: 'top'|'right'|'bottom'|'left' }[] = [
-      { x: 0, y: -1, dir: 'top', opp: 'bottom' }, { x: 1, y: 0, dir: 'right', opp: 'left' },
-      { x: 0, y: 1, dir: 'bottom', opp: 'top' }, { x: -1, y: 0, dir: 'left', opp: 'right' }
-    ];
-
-    for (const d of dirs) {
-      const nx = current.x + d.x, ny = current.y + d.y;
-      if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
-        const n = grid[ny][nx];
-        if (n.isInside && !n.visited) neighbors.push({ cell: n, dir: d.dir, opp: d.opp });
-      }
-    }
-
-    if (neighbors.length > 0) {
-      const { cell: next, dir, opp } = neighbors[Math.floor(Math.random() * neighbors.length)];
-      current.walls[dir] = false;
-      next.walls[opp] = false;
-      next.visited = true;
-      stack.push(next);
-    } else {
-      stack.pop();
-    }
-  }
-
-  const startPoint: Point = { x: startCell.x, y: startCell.y };
-  const endCell = insideCells[insideCells.length - 1];
-  const endPoint: Point = { x: endCell.x, y: endCell.y };
-
-  return { type: config.generatorType, grid, start: startPoint, end: endPoint, solution: [], config };
+  const result = generateMaze(config);
+  return {
+    type: config.generatorType,
+    grid: result.grid,
+    start: result.start,
+    end: result.end,
+    solution: result.solution,
+    config
+  };
 };

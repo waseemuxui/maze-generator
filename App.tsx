@@ -60,16 +60,19 @@ const App: React.FC = () => {
     setIsGenerating(false);
   }, [config]);
 
-  useEffect(() => { handleGenerate(); }, [config.generatorType]);
+  useEffect(() => { handleGenerate(); }, [config.generatorType, config.shape, config.difficulty, config.size]);
 
   const drawToCanvas = (ctx: CanvasRenderingContext2D, p: GeneratedPuzzle, cfg: AppConfig, theme: MazeTheme, forceSolution: boolean) => {
     ctx.fillStyle = theme.bgColor;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     if (p.type === 'maze' || p.type === 'maze2') {
-      const cellSize = cfg.cellSize;
+      const cellSize = ctx.canvas.width / cfg.size;
       ctx.strokeStyle = theme.wallColor;
       ctx.lineWidth = cfg.wallThickness;
+      ctx.lineCap = 'round';
+      
+      // Draw grid walls
       p.grid?.forEach((row: any) => row.forEach((cell: any) => {
         if (!cell.isInside) return;
         const x = cell.x * cellSize, y = cell.y * cellSize;
@@ -79,6 +82,20 @@ const App: React.FC = () => {
         if (cell.walls.left) { ctx.beginPath(); ctx.moveTo(x, y + cellSize); ctx.lineTo(x, y); ctx.stroke(); }
       }));
       
+      // Draw start/end marks
+      if (cfg.showMarks && p.start && p.end) {
+        ctx.font = `bold ${cellSize * 0.7}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.fillStyle = theme.startColor;
+        ctx.fillText('S', p.start.x * cellSize + cellSize/2, p.start.y * cellSize + cellSize/2);
+        
+        ctx.fillStyle = theme.endColor;
+        ctx.fillText('E', p.end.x * cellSize + cellSize/2, p.end.y * cellSize + cellSize/2);
+      }
+
+      // Draw solution
       if (forceSolution && p.solution) {
         ctx.strokeStyle = theme.pathColor;
         ctx.lineWidth = cfg.pathThickness;
@@ -158,7 +175,7 @@ const App: React.FC = () => {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const x = c * step, y = r * step;
-          if (gridData[r][r] === '#') { // Simple check for crossword block
+          if (gridData[r][c] === '#') {
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(x, y, step, step);
           } else {
@@ -206,7 +223,6 @@ const App: React.FC = () => {
 
     const batchPuzzles: GeneratedPuzzle[] = [];
     
-    // Generate all puzzles first
     for (let i = 0; i < config.bulkCount; i++) {
       const batchConfig = { ...config, seed: `${config.seed}-${i}-${Math.random()}` };
       const p = generatePuzzle(batchConfig);
@@ -214,36 +230,29 @@ const App: React.FC = () => {
       setProgress(Math.round(((i + 1) / (config.bulkCount * 2)) * 100));
     }
 
-    // Add Puzzle Pages
     for (let i = 0; i < batchPuzzles.length; i++) {
       if (i > 0) doc.addPage();
       const p = batchPuzzles[i];
       
-      // Header
       doc.setFontSize(8); doc.setTextColor(150);
       doc.text(config.pdfHeader, width/2, 10, { align: 'center' });
       
-      // Title
       doc.setFontSize(22); doc.setTextColor(30);
       doc.text(`${p.type.toUpperCase()} #${i+1}`, margin, 30);
       
-      // Puzzle
       drawToCanvas(offCtx, p, config, currentTheme, false);
       doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 40, canvasSize, canvasSize);
       
-      // Signature Fields
       if (config.showSignatureFields) {
         doc.setFontSize(10); doc.setTextColor(100);
         doc.text("Explorer Name: _______________________", margin, height - 30);
         doc.text("Date: ___________", width - margin - 40, height - 30);
       }
       
-      // Footer
       doc.setFontSize(8); doc.text(config.pdfFooter, width/2, height - 10, { align: 'center' });
       setProgress(50 + Math.round(((i + 1) / (batchPuzzles.length * 2)) * 100));
     }
 
-    // Solutions Section
     doc.addPage();
     doc.setFontSize(24);
     doc.text("SOLUTIONS", width/2, height/2, { align: 'center' });
@@ -265,7 +274,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800">
-      {/* Sidebar Tool Selection */}
       <aside className="w-64 bg-slate-900 text-slate-400 flex flex-col shrink-0 border-r border-white/5">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
           <div className="bg-indigo-500 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20"><i className="fas fa-layer-group text-xl"></i></div>
@@ -293,7 +301,6 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
         <header className="h-20 bg-white border-b border-slate-200 px-10 flex items-center justify-between shadow-sm z-10 relative">
           <div className="flex flex-col">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Workspace</span>
@@ -326,7 +333,6 @@ const App: React.FC = () => {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Main Visualizer */}
           <div className="flex-1 p-12 overflow-y-auto bg-slate-50 flex flex-col items-center gap-8 relative pattern-dots">
             {isGenerating && (
               <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-6">
@@ -341,7 +347,6 @@ const App: React.FC = () => {
               </div>
             )}
             
-            {/* The Sheet Container */}
             <div className="bg-white p-16 shadow-[0_30px_100px_-10px_rgba(0,0,0,0.15)] rounded-lg border border-slate-200 relative max-w-[750px] w-full aspect-square flex items-center justify-center transform transition-transform duration-500 hover:scale-[1.02]">
               <div className="absolute top-6 left-10 flex flex-col">
                 <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">{config.pdfHeader}</span>
@@ -356,7 +361,6 @@ const App: React.FC = () => {
               <canvas ref={canvasRef} className="max-w-full max-h-full h-auto w-auto" />
             </div>
 
-            {/* AI Narration Card */}
             <div className="w-full max-w-[750px] bg-indigo-900 text-white p-8 rounded-3xl shadow-2xl flex items-start gap-6 border-4 border-white">
                <div className="bg-white/10 w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border border-white/20"><i className="fas fa-feather-pointed text-2xl text-indigo-300"></i></div>
                <div className="space-y-2">
@@ -369,9 +373,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Controls Sidebar */}
           <aside className="w-80 bg-white border-l border-slate-200 overflow-y-auto p-8 space-y-10 shadow-2xl z-10">
-            {/* Difficulty & Complexity */}
             <section className="space-y-6">
               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Configuration</h3>
               
@@ -417,7 +419,6 @@ const App: React.FC = () => {
               )}
             </section>
 
-            {/* Bulk / Batch Section */}
             <section className="space-y-6">
               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Bulk Production</h3>
               <div className="space-y-4">
@@ -430,7 +431,6 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* Aesthetic Selection */}
             <section className="space-y-6">
               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Theme Engine</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -449,7 +449,6 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* Export Actions */}
             <section className="space-y-4 pt-4">
                <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em]">Export Formats</h3>
                <div className="grid grid-cols-1 gap-3">

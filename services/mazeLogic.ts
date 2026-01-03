@@ -19,16 +19,13 @@ export const isInsideShape = (x: number, y: number, shape: MazeShape, size: numb
       return r <= 0.3 + 0.7 * s;
     }
     case 'heart': {
-      const a = Math.atan2(dy, dx - 0.0001); // avoid div zero
+      const a = Math.atan2(dy, dx - 0.0001);
       const heartR = (Math.sin(a) * Math.sqrt(Math.abs(Math.cos(a)))) / (Math.sin(a) + 1.4) - 2 * Math.sin(a) + 2;
       return r <= heartR * 0.3;
     }
     case 'donut': return r <= 1.0 && r >= 0.4;
     case 'hexagon': return Math.abs(dx) <= 0.866 && Math.abs(dy) <= 1.0 && Math.abs(dx) * 0.5 + Math.abs(dy) * 0.866 <= 0.866;
-    case 'octagon': {
-      const oct = Math.abs(dx) <= 1.0 && Math.abs(dy) <= 1.0 && (Math.abs(dx) + Math.abs(dy) <= 1.4);
-      return oct;
-    }
+    case 'octagon': return Math.abs(dx) <= 1.0 && Math.abs(dy) <= 1.0 && (Math.abs(dx) + Math.abs(dy) <= 1.4);
     case 'moon': {
       const isMainCircle = r <= 1.0;
       const distToCrescent = Math.sqrt(Math.pow(dx - 0.4, 2) + Math.pow(dy - 0.2, 2));
@@ -46,11 +43,10 @@ export const isInsideShape = (x: number, y: number, shape: MazeShape, size: numb
     }
     case 'shield': {
       if (Math.abs(dx) > 0.8) return false;
-      if (dy < 0) return true; // Top rectangle part
-      return dy <= 1.0 - Math.abs(dx); // Pointed bottom part
+      if (dy < 0) return true;
+      return dy <= 1.0 - Math.abs(dx);
     }
     case 'bolt': {
-      // Piece-wise definition of a lightning bolt
       const inTop = dy < 0 && dy > -0.8 && dx > -0.6 && dx < 0.2 && (dx - dy < 0.4);
       const inBottom = dy >= 0 && dy < 0.8 && dx > -0.2 && dx < 0.6 && (dx - dy > -0.4);
       return inTop || inBottom;
@@ -61,6 +57,8 @@ export const isInsideShape = (x: number, y: number, shape: MazeShape, size: numb
 
 export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point, end: Point, solution: Point[] } => {
   const { size, difficulty } = config;
+  if (size <= 0) return { grid: [], start: { x: 0, y: 0 }, end: { x: 0, y: 0 }, solution: [] };
+
   const grid: Cell[][] = Array.from({ length: size }, (_, y) =>
     Array.from({ length: size }, (_, x) => ({
       x,
@@ -94,7 +92,7 @@ export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point
       const ny = current.y + d.y;
       if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
         const neighbor = grid[ny][nx];
-        if (neighbor.isInside && !neighbor.visited) {
+        if (neighbor && neighbor.isInside && !neighbor.visited) {
           neighbors.push({ cell: neighbor, dir: d.dir });
         }
       }
@@ -112,7 +110,6 @@ export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point
     }
   }
 
-  // Braiding: Remove some dead ends based on difficulty
   const braidChance = difficulty === 'easy' ? 0.5 : difficulty === 'medium' ? 0.2 : 0;
   if (braidChance > 0) {
     grid.flat().forEach(cell => {
@@ -129,7 +126,7 @@ export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point
         const nx = cell.x + (wallToBreak === 'left' ? -1 : wallToBreak === 'right' ? 1 : 0);
         const ny = cell.y + (wallToBreak === 'top' ? -1 : wallToBreak === 'bottom' ? 1 : 0);
         
-        if (nx >= 0 && nx < size && ny >= 0 && ny < size && grid[ny][nx].isInside) {
+        if (nx >= 0 && nx < size && ny >= 0 && ny < size && grid[ny][nx] && grid[ny][nx].isInside) {
           cell.walls[wallToBreak] = false;
           const opp = wallToBreak === 'top' ? 'bottom' : wallToBreak === 'bottom' ? 'top' : wallToBreak === 'left' ? 'right' : 'left';
           grid[ny][nx].walls[opp] = false;
@@ -139,6 +136,8 @@ export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point
   }
 
   const validCells = grid.flat().filter(c => c.isInside);
+  if (validCells.length === 0) return { grid, start: { x: 0, y: 0 }, end: { x: 0, y: 0 }, solution: [] };
+
   const start = validCells[0];
   let end = validCells[validCells.length - 1];
   let maxDist = 0;
@@ -156,15 +155,24 @@ export const generateMaze = (config: MazeConfig): { grid: Cell[][], start: Point
 };
 
 const findSolution = (grid: Cell[][], start: Point, end: Point): Point[] => {
+  if (!start || !end || !grid.length) return [];
+  const size = grid.length;
+  if (start.y < 0 || start.y >= size || start.x < 0 || start.x >= size) return [];
+
   const queue: { point: Point; path: Point[] }[] = [{ point: start, path: [start] }];
   const visited = new Set<string>();
   visited.add(`${start.x},${start.y}`);
 
   while (queue.length > 0) {
-    const { point, path } = queue.shift()!;
+    const currentItem = queue.shift();
+    if (!currentItem) continue;
+    const { point, path } = currentItem;
+    
     if (point.x === end.x && point.y === end.y) return path;
 
-    const current = grid[point.y][point.x];
+    const currentCell = grid[point.y][point.x];
+    if (!currentCell) continue;
+
     const dirs: { x: number; y: number; wall: keyof Cell['walls'] }[] = [
       { x: 0, y: -1, wall: 'top' },
       { x: 1, y: 0, wall: 'right' },
@@ -173,13 +181,15 @@ const findSolution = (grid: Cell[][], start: Point, end: Point): Point[] => {
     ];
 
     for (const d of dirs) {
-      if (!current.walls[d.wall]) {
+      if (!currentCell.walls[d.wall]) {
         const nx = point.x + d.x;
         const ny = point.y + d.y;
-        const key = `${nx},${ny}`;
-        if (!visited.has(key)) {
-          visited.add(key);
-          queue.push({ point: { x: nx, y: ny }, path: [...path, { x: nx, y: ny }] });
+        if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
+          const key = `${nx},${ny}`;
+          if (!visited.has(key)) {
+            visited.add(key);
+            queue.push({ point: { x: nx, y: ny }, path: [...path, { x: nx, y: ny }] });
+          }
         }
       }
     }

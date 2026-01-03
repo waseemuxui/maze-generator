@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { AppConfig, GeneratorType, Difficulty, MazeShape, MazeTheme, ThemeId, GeneratedPuzzle, Point } from './types';
+import { AppConfig, GeneratorType, Difficulty, MazeShape, MazeTheme, ThemeId, GeneratedPuzzle, Point, PdfPageSize, PdfOrientation, PdfFont, PdfBorderStyle } from './types';
 import { generatePuzzle } from './services/puzzleLogic';
 import { generateMazeStory } from './services/geminiService';
 import { jsPDF } from 'jspdf';
@@ -26,6 +25,7 @@ const GENERATORS: { id: GeneratorType; label: string; icon: string; category: st
 
 const MAZE_THEMES: MazeTheme[] = [
   { id: 'classic', name: 'Classic', bgColor: '#f8fafc', wallColor: '#334155', pathColor: '#ef4444', startColor: '#22c55e', endColor: '#3b82f6', icon: 'fa-monument' },
+  { id: 'cartoon', name: 'Kid Zone', bgColor: '#fffcf0', wallColor: '#f43f5e', pathColor: '#0ea5e9', startColor: '#fbbf24', endColor: '#8b5cf6', icon: 'fa-face-smile-beam' },
   { id: 'cyberpunk', name: 'Cyber', bgColor: '#000000', wallColor: '#06b6d4', pathColor: '#f472b6', startColor: '#4ade80', endColor: '#fbbf24', icon: 'fa-microchip' },
   { id: 'parchment', name: 'Ancient', bgColor: '#fdf6e3', wallColor: '#586e75', pathColor: '#268bd2', startColor: '#d33682', endColor: '#859900', icon: 'fa-scroll' },
   { id: 'nightmare', name: 'Dark', bgColor: '#0f172a', wallColor: '#f43f5e', pathColor: '#f8fafc', startColor: '#a855f7', endColor: '#ffffff', icon: 'fa-ghost' },
@@ -34,6 +34,17 @@ const MAZE_THEMES: MazeTheme[] = [
   { id: 'sunset', name: 'Sunset', bgColor: '#fff7ed', wallColor: '#9a3412', pathColor: '#7c3aed', startColor: '#f97316', endColor: '#6366f1', icon: 'fa-cloud-sun' },
   { id: 'candy', name: 'Candy', bgColor: '#fff1f2', wallColor: '#be123c', pathColor: '#fb7185', startColor: '#f43f5e', endColor: '#ec4899', icon: 'fa-candy-cane' },
 ];
+
+const PRINT_READY_THEME: MazeTheme = {
+  id: 'classic',
+  name: 'Print Ready',
+  bgColor: '#ffffff',
+  wallColor: '#000000',
+  pathColor: '#555555',
+  startColor: '#000000',
+  endColor: '#000000',
+  icon: 'fa-print'
+};
 
 const SHAPES: { id: MazeShape; icon: string }[] = [
   { id: 'square', icon: 'fa-square' }, 
@@ -54,19 +65,33 @@ const SHAPES: { id: MazeShape; icon: string }[] = [
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>({
-    generatorType: 'maze', size: 20, cellSize: 25, difficulty: 'medium', shape: 'square', themeId: 'classic', seed: 'ABC',
+    generatorType: 'maze', size: 20, cellSize: 25, difficulty: 'medium', shape: 'square', themeId: 'cartoon', seed: 'PUZZLE',
     showSolution: false, showMarks: true, wallThickness: 2, pathThickness: 3,
-    pdfHeader: 'ARCHITECT PRO CHALLENGE', pdfFooter: 'WWW.PUZZLEPRO.IO', pdfCredits: '© 2025 ARCHITECT AI',
-    showSignatureFields: true, bulkCount: 1, randomizeShapes: true, randomizeDifficulty: true, randomizeGenerators: false,
-    words: [], gridSize: 15
+    pdfHeader: 'PUZZLESPRINTS COLLECTION', pdfFooter: 'https://puzzlesprints.etsy.com/', pdfCredits: '© 2025 PUZZLESPRINTS',
+    pdfPageSize: 'a4', pdfOrientation: 'portrait', pdfFont: 'helvetica', pdfMargin: 15, pdfShowDecorativeLines: true,
+    pdfBorderStyle: 'playful', pdfAccentColor: '#f43f5e', pdfRuleColor: '#e2e8f0', pdfRuleThickness: 0.3, pdfLogoBase64: null, pdfWatermarkText: '',
+    showSignatureFields: true, signatureLabel1: 'COMPLETED BY', signatureLabel2: 'DATE',
+    bulkCount: 5, randomizeShapes: true, enableProgression: true, randomizeGenerators: false,
+    words: ['MAZE', 'PUZZLE', 'LOGIC', 'QUEST', 'SOLVE', 'EXPLORE', 'KINDNESS', 'WISDOM'],
+    wordSearchDirections: ['E', 'S'], wordSearchOverlap: true, wordScrambleCount: 5,
+    sudokuSize: 9, sudokuSymmetry: true, kenKenSize: 4, kenKenOps: ['+', '-'],
+    magicSquareSize: 3, starBattleSize: 8, starBattleStars: 1, kakuroDensity: 0.3,
+    mazeBraidChance: 0.1, cryptogramSource: "SUCCESS IS THE RESULT OF PREPARATION AND HARD WORK",
+    twistedWordBending: true, crosswordDensity: 0.4, bridgesIslandCount: 10, bridgesMaxBridges: 3,
+    bingoGridSize: 5, bingoCardCount: 1, tartanStripeCount: 8, tartanComplexity: 5,
+    bauhausShapeCount: 15, bauhausStyle: 'modern', gridSize: 15
   });
 
+  const [isInkSaver, setIsInkSaver] = useState(true);
   const [puzzle, setPuzzle] = useState<GeneratedPuzzle | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentView, setCurrentView] = useState<'puzzle' | 'solution'>('puzzle');
   const [progress, setProgress] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const currentTheme = MAZE_THEMES.find(t => t.id === config.themeId) || MAZE_THEMES[0];
+  
+  const currentTheme = isInkSaver && currentView === 'puzzle' 
+    ? PRINT_READY_THEME 
+    : (MAZE_THEMES.find(t => t.id === config.themeId) || MAZE_THEMES[0]);
 
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
@@ -76,18 +101,30 @@ const App: React.FC = () => {
     setIsGenerating(false);
   }, [config]);
 
-  useEffect(() => { handleGenerate(); }, [config.generatorType, config.shape, config.difficulty, config.size]);
+  useEffect(() => { 
+    handleGenerate(); 
+  }, [
+    config.generatorType, config.shape, config.difficulty, config.size, 
+    config.sudokuSize, config.kenKenSize, config.magicSquareSize, 
+    config.gridSize, config.words, config.starBattleSize, config.starBattleStars,
+    config.kakuroDensity, config.crosswordDensity, config.bingoGridSize,
+    config.tartanStripeCount, config.bauhausShapeCount, config.bauhausStyle,
+    config.bridgesIslandCount, config.cryptogramSource, config.mazeBraidChance
+  ]);
 
-  const drawToCanvas = (ctx: CanvasRenderingContext2D, p: GeneratedPuzzle, cfg: AppConfig, theme: MazeTheme, forceSolution: boolean) => {
+  const drawToCanvas = (ctx: CanvasRenderingContext2D, p: GeneratedPuzzle, cfg: AppConfig, theme: MazeTheme, forceSolution: boolean, isForPrint: boolean = false) => {
+    const scale = isForPrint ? 4 : 2; 
     ctx.fillStyle = theme.bgColor;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    const wallThickness = (cfg.wallThickness || 2) * scale;
+    const pathThickness = (cfg.pathThickness || 3) * scale;
 
     if (p.type === 'maze' || p.type === 'maze2') {
       const cellSize = ctx.canvas.width / cfg.size;
       ctx.strokeStyle = theme.wallColor;
-      ctx.lineWidth = cfg.wallThickness;
+      ctx.lineWidth = wallThickness;
       ctx.lineCap = 'round';
-      
       p.grid?.forEach((row: any) => row.forEach((cell: any) => {
         if (!cell.isInside) return;
         const x = cell.x * cellSize, y = cell.y * cellSize;
@@ -96,104 +133,35 @@ const App: React.FC = () => {
         if (cell.walls.bottom) { ctx.beginPath(); ctx.moveTo(x + cellSize, y + cellSize); ctx.lineTo(x, y + cellSize); ctx.stroke(); }
         if (cell.walls.left) { ctx.beginPath(); ctx.moveTo(x, y + cellSize); ctx.lineTo(x, y); ctx.stroke(); }
       }));
-      
       if (cfg.showMarks && p.start && p.end) {
         ctx.font = `bold ${cellSize * 0.7}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = theme.startColor;
-        ctx.fillText('S', p.start.x * cellSize + cellSize/2, p.start.y * cellSize + cellSize/2);
-        ctx.fillStyle = theme.endColor;
-        ctx.fillText('E', p.end.x * cellSize + cellSize/2, p.end.y * cellSize + cellSize/2);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = theme.startColor; ctx.fillText('S', p.start.x * cellSize + cellSize/2, p.start.y * cellSize + cellSize/2);
+        ctx.fillStyle = theme.endColor; ctx.fillText('E', p.end.x * cellSize + cellSize/2, p.end.y * cellSize + cellSize/2);
       }
-
       if (forceSolution && p.solution) {
-        ctx.strokeStyle = theme.pathColor;
-        ctx.lineWidth = cfg.pathThickness;
+        ctx.strokeStyle = theme.pathColor; ctx.lineWidth = pathThickness;
         ctx.beginPath();
         p.solution.forEach((pt: Point, i: number) => {
-          const x = pt.x * cellSize + cellSize/2;
-          const y = pt.y * cellSize + cellSize/2;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+          const x = pt.x * cellSize + cellSize/2, y = pt.y * cellSize + cellSize/2;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
       }
-    } else if (p.type === 'wordscramble') {
-      ctx.fillStyle = theme.wallColor;
-      ctx.font = 'bold 20px JetBrains Mono';
-      ctx.textAlign = 'left';
-      p.grid.forEach((w: any, idx: number) => {
-        const y = 80 + (idx * 40);
-        ctx.fillText(`${idx + 1}. ${w.scrambled}`, 100, y);
-        if (forceSolution) {
-          ctx.fillStyle = theme.pathColor;
-          ctx.fillText(`→ ${w.original}`, 350, y);
-          ctx.fillStyle = theme.wallColor;
-        } else {
-           ctx.setLineDash([5, 5]);
-           ctx.strokeRect(340, y - 20, 200, 30);
-           ctx.setLineDash([]);
-        }
-      });
-    } else if (p.type === 'cryptogram') {
-      ctx.fillStyle = theme.wallColor;
-      ctx.font = '22px JetBrains Mono';
-      ctx.textAlign = 'center';
-      const text = forceSolution ? p.grid.original : p.grid.encoded;
-      const lines = text.match(/.{1,30}/g) || [];
-      lines.forEach((line: string, i: number) => {
-        ctx.fillText(line, ctx.canvas.width / 2, (ctx.canvas.height / 2) - (lines.length * 15) + (i * 50));
-      });
-    } else if (p.type === 'bauhaus' && p.renderData) {
-      p.renderData.forEach((s: any) => {
-        ctx.fillStyle = s.color;
-        const x = (s.x / 100) * ctx.canvas.width;
-        const y = (s.y / 100) * ctx.canvas.height;
-        ctx.beginPath();
-        if (s.type === 'circle') ctx.arc(x, y, s.size, 0, Math.PI * 2);
-        else if (s.type === 'rect') ctx.rect(x - s.size / 2, y - s.size / 2, s.size, s.size);
-        else {
-          ctx.moveTo(x, y - s.size);
-          ctx.lineTo(x + s.size, y + s.size);
-          ctx.lineTo(x - s.size, y + s.size);
-          ctx.closePath();
-        }
-        ctx.fill();
-      });
-    } else if (p.type === 'tartan' && p.renderData) {
-      let offset = 0;
-      p.renderData.forEach((s: any) => {
-        ctx.fillStyle = s.color;
-        ctx.fillRect(offset, 0, s.width, ctx.canvas.height);
-        ctx.globalAlpha = 0.5;
-        ctx.fillRect(0, offset, ctx.canvas.width, s.width);
-        ctx.globalAlpha = 1.0;
-        offset += s.width;
-      });
-    } else if (p.grid && Array.isArray(p.grid) && p.grid.length > 0 && Array.isArray(p.grid[0])) {
-      const rows = p.grid.length;
-      const cols = p.grid[0].length;
-      const step = ctx.canvas.width / cols;
-      ctx.strokeStyle = theme.wallColor;
-      ctx.lineWidth = 1;
-      ctx.font = `bold ${step * 0.5}px JetBrains Mono`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
+    } else if (p.grid && Array.isArray(p.grid)) {
+      const rows = p.grid.length, cols = p.grid[0].length, step = ctx.canvas.width / cols;
+      ctx.strokeStyle = theme.wallColor; ctx.lineWidth = wallThickness;
+      ctx.font = `bold ${step * (p.type === 'bingo' ? 0.4 : 0.5)}px Inter`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const gridData = forceSolution && p.solution ? p.solution : p.grid;
-
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const x = c * step, y = r * step;
-          if (gridData[r][c] === '#') {
-            ctx.fillStyle = '#1e293b';
-            ctx.fillRect(x, y, step, step);
-          } else {
+          if (gridData[r][c] === '#') { ctx.fillStyle = theme.wallColor; ctx.fillRect(x, y, step, step); }
+          else {
             ctx.strokeRect(x, y, step, step);
-            if (gridData[r][c] !== null && gridData[r][c] !== '') {
-              ctx.fillStyle = theme.wallColor;
-              ctx.fillText(gridData[r][c].toString(), x + step/2, y + step/2);
+            if (gridData[r][c] !== '' && gridData[r][c] !== null) {
+              ctx.fillStyle = theme.wallColor; ctx.fillText(gridData[r][c].toString(), x + step/2, y + step/2 + (scale * 2));
             }
           }
         }
@@ -202,117 +170,95 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!puzzle || !canvasRef.current) return;
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
-    canvasRef.current.width = 800;
-    canvasRef.current.height = 800;
-    drawToCanvas(ctx, puzzle, config, currentTheme, currentView === 'solution');
-  }, [puzzle, config, currentTheme, currentView]);
+    if (canvasRef.current && puzzle) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        canvasRef.current.width = 1600;
+        canvasRef.current.height = 1600;
+        drawToCanvas(ctx, puzzle, config, currentTheme, currentView === 'solution');
+      }
+    }
+  }, [puzzle, currentTheme, currentView, config]);
 
-  const downloadImage = (format: 'png' | 'jpeg') => {
-    if (!canvasRef.current) return;
-    const link = document.createElement('a');
-    link.download = `puzzle-${Date.now()}.${format}`;
-    link.href = canvasRef.current.toDataURL(`image/${format}`, 1.0);
-    link.click();
-  };
-
-  const downloadPDF = async () => {
+  const downloadPDFPackage = async () => {
     setIsGenerating(true);
     setProgress(0);
-    const doc = new jsPDF();
-    const width = doc.internal.pageSize.getWidth();
-    const height = doc.internal.pageSize.getHeight();
-    const margin = 20;
-    const canvasSize = width - margin * 2;
-    
-    const offCanvas = document.createElement('canvas');
-    offCanvas.width = 1600;
-    offCanvas.height = 1600;
-    const offCtx = offCanvas.getContext('2d')!;
+    const doc = new jsPDF({ orientation: config.pdfOrientation, unit: 'mm', format: config.pdfPageSize, compress: true });
+    const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(), margin = config.pdfMargin;
+    const contentWidth = pw - (margin * 2);
 
-    const batchPuzzles: GeneratedPuzzle[] = [];
-    
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = 2400; tempCanvas.height = 2400;
+    const tempCtx = tempCanvas.getContext('2d')!;
+
+    const batch: GeneratedPuzzle[] = [];
     for (let i = 0; i < config.bulkCount; i++) {
-      const batchConfig = { ...config, seed: `${config.seed}-${i}-${Math.random()}` };
-      const p = generatePuzzle(batchConfig);
-      batchPuzzles.push({ ...p, story: await generateMazeStory(batchConfig) } as GeneratedPuzzle);
-      setProgress(Math.round(((i + 1) / (config.bulkCount * 2)) * 100));
+        let diff = config.difficulty;
+        let shape = config.shape;
+        if (config.enableProgression) {
+            const ratio = i / config.bulkCount;
+            diff = ratio < 0.3 ? 'easy' : ratio < 0.6 ? 'medium' : 'hard';
+        }
+        if (config.randomizeShapes) {
+          shape = SHAPES[Math.floor(Math.random() * SHAPES.length)].id;
+        }
+        const subConfig = { ...config, seed: `${config.seed}_${i}`, difficulty: diff, shape };
+        const p = generatePuzzle(subConfig);
+        batch.push({ ...p, story: '', config: subConfig } as GeneratedPuzzle);
+        setProgress(Math.round(((i + 1) / (config.bulkCount * 2)) * 100));
     }
 
-    for (let i = 0; i < batchPuzzles.length; i++) {
-      if (i > 0) doc.addPage();
-      const p = batchPuzzles[i];
-      
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text(config.pdfHeader, width/2, 12, { align: 'center' });
-      
-      doc.setFontSize(22); doc.setTextColor(30);
-      doc.text(`${p.type.toUpperCase()} CHALLENGE #${i+1}`, margin, 30);
-      
-      drawToCanvas(offCtx, p, config, currentTheme, false);
-      doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 40, canvasSize, canvasSize);
-      
-      doc.setFontSize(9); doc.setTextColor(100);
-      doc.text(config.pdfCredits, width/2, height - 18, { align: 'center' });
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text(config.pdfFooter, width/2, height - 10, { align: 'center' });
+    const drawPageDecor = (title: string, pNum: number, color: string, isSolution: boolean = false) => {
+        doc.setFont(config.pdfFont, 'bold');
+        doc.setFontSize(9); doc.setTextColor('#94a3b8');
+        doc.text(config.pdfHeader, pw / 2, margin + 5, { align: 'center' });
+        doc.setFontSize(22); doc.setTextColor(color);
+        doc.text(isSolution ? `${title} SOLUTION` : title, margin, margin + 20);
+        doc.setFontSize(12); doc.text(`#${pNum}`, pw - margin, margin + 20, { align: 'right' });
+        doc.setFontSize(7); doc.setTextColor('#94a3b8');
+        doc.text(config.pdfFooter, pw / 2, ph - margin + 5, { align: 'center' });
+    };
 
-      if (config.showSignatureFields) {
-        doc.setFontSize(10); doc.setTextColor(100);
-        doc.text("Explorer Name: _______________________", margin, height - 30);
-        doc.text("Date: ___________", width - margin - 40, height - 30);
-      }
-      
-      setProgress(50 + Math.round(((i + 1) / (batchPuzzles.length * 2)) * 100));
+    const finalTheme = isInkSaver ? PRINT_READY_THEME : currentTheme;
+    const finalAccent = isInkSaver ? '#000000' : config.pdfAccentColor;
+
+    // Puzzle Pages
+    for (let i = 0; i < batch.length; i++) {
+        if (i > 0) doc.addPage();
+        const p = batch[i];
+        drawPageDecor(`${p.type.toUpperCase()}`, i + 1, finalAccent);
+        drawToCanvas(tempCtx, p, config, finalTheme, false, true);
+        doc.addImage(tempCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin + 30, contentWidth, contentWidth);
     }
 
-    doc.addPage();
-    doc.setFontSize(24); doc.setTextColor(30);
-    doc.text("SOLUTIONS HANDBOOK", width/2, height/2, { align: 'center' });
-    
-    for (let i = 0; i < batchPuzzles.length; i++) {
-      doc.addPage();
-      const p = batchPuzzles[i];
-      doc.setFontSize(14); doc.setTextColor(30);
-      doc.text(`Solution for Puzzle #${i+1}`, margin, 20);
-      
-      drawToCanvas(offCtx, p, config, currentTheme, true);
-      doc.addImage(offCanvas.toDataURL('image/png'), 'PNG', margin, 30, canvasSize, canvasSize);
-      
-      doc.setFontSize(9); doc.setTextColor(120);
-      doc.text(config.pdfCredits, width/2, height - 18, { align: 'center' });
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text(config.pdfFooter, width/2, height - 10, { align: 'center' });
+    // Solution Pages
+    for (let i = 0; i < batch.length; i++) {
+        doc.addPage();
+        const p = batch[i];
+        drawPageDecor(`${p.type.toUpperCase()}`, i + 1, '#10b981', true);
+        drawToCanvas(tempCtx, p, config, finalTheme, true, true);
+        doc.addImage(tempCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin + 30, contentWidth, contentWidth);
+        setProgress(50 + Math.round(((i + 1) / (batch.length * 2)) * 100));
     }
 
-    doc.save(`puzzle-collection-${Date.now()}.pdf`);
-    setIsGenerating(false);
-    setProgress(null);
+    doc.save(`puzzlesprints-bundle-${Date.now()}.pdf`);
+    setIsGenerating(false); setProgress(null);
   };
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden text-slate-800">
-      <aside className="w-64 bg-slate-900 text-slate-400 flex flex-col shrink-0 border-r border-white/5">
+    <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-800">
+      <aside className="w-64 bg-slate-900 text-slate-400 flex flex-col shrink-0 border-r border-white/5 overflow-hidden">
         <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-indigo-500 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/20"><i className="fas fa-layer-group text-xl"></i></div>
-          <div>
-            <h1 className="font-black text-white tracking-tighter text-lg leading-none">ARCHITECT</h1>
-            <span className="text-[10px] font-bold text-indigo-400 tracking-widest uppercase">Studio Pro</span>
-          </div>
+          <div className="bg-indigo-500 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xl"><i className="fas fa-print"></i></div>
+          <div><h1 className="font-black text-white text-lg leading-none tracking-tight">PUZZLES</h1><span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">PRINTS</span></div>
         </div>
-        <nav className="flex-1 overflow-y-auto p-4 space-y-6">
+        <nav className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
           {['Labyrinths', 'Logic', 'Word', 'Games', 'Art'].map(cat => (
-            <div key={cat} className="space-y-1">
-              <h3 className="px-3 text-[10px] font-black uppercase tracking-widest text-slate-600 mb-2">{cat}</h3>
+            <div key={cat}>
+              <h3 className="px-3 text-[10px] font-black uppercase text-slate-600 mb-2">{cat}</h3>
               {GENERATORS.filter(g => g.category === cat).map(gen => (
-                <button 
-                  key={gen.id} 
-                  onClick={() => setConfig({...config, generatorType: gen.id})}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${config.generatorType === gen.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-slate-800 hover:text-slate-200'}`}
-                >
-                  <i className={`fas ${gen.icon} w-5 text-center`}></i> {gen.label}
+                <button key={gen.id} onClick={() => setConfig({...config, generatorType: gen.id})} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${config.generatorType === gen.id ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-slate-200'}`}>
+                  <i className={`fas ${gen.icon} w-5`}></i> {gen.label}
                 </button>
               ))}
             </div>
@@ -321,181 +267,138 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-20 bg-white border-b border-slate-200 px-10 flex items-center justify-between shadow-sm z-10 relative">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Workspace</span>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-3 capitalize">
-               {config.generatorType.replace('2', ' shaped')} Studio
-            </h2>
-          </div>
-
+        <header className="h-20 bg-white border-b px-10 flex items-center justify-between shadow-sm z-10">
+          <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected Mode</span><h2 className="text-xl font-bold capitalize">{config.generatorType}</h2></div>
           <div className="flex items-center gap-3 bg-slate-100 p-1.5 rounded-2xl">
-            <button onClick={() => setCurrentView('puzzle')} className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all duration-300 flex items-center gap-2 ${currentView === 'puzzle' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
-              <i className="fas fa-eye"></i> CHALLENGE
-            </button>
-            <button onClick={() => setCurrentView('solution')} className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all duration-300 flex items-center gap-2 ${currentView === 'solution' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
-              <i className="fas fa-key"></i> SOLUTION
-            </button>
+            {['puzzle', 'solution'].map(v => (
+              <button key={v} onClick={() => setCurrentView(v as any)} className={`px-8 py-2.5 text-xs font-black rounded-xl transition-all ${currentView === v ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500'}`}>{v.toUpperCase()}</button>
+            ))}
           </div>
-          
           <div className="flex items-center gap-4">
-             <div className="h-10 w-px bg-slate-200 mx-2"></div>
-             <button onClick={handleGenerate} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl text-xs font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 group">
-               <i className={`fas fa-sync-alt transition-transform duration-500 ${isGenerating ? 'animate-spin' : 'group-hover:rotate-180'}`}></i> REGENERATE
-             </button>
+            <div className="flex flex-col items-end">
+                <span className="text-[9px] font-black text-slate-400 uppercase">Ink Saver</span>
+                <button onClick={() => setIsInkSaver(!isInkSaver)} className={`w-12 h-6 rounded-full relative transition-all ${isInkSaver ? 'bg-green-500' : 'bg-slate-300'}`}><div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isInkSaver ? 'left-7' : 'left-1'}`} /></button>
+            </div>
+            <button onClick={handleGenerate} className="bg-slate-900 text-white px-6 py-3 rounded-xl text-xs font-black hover:bg-slate-800 shadow-xl transition-transform active:scale-95">REFRESH</button>
           </div>
         </header>
 
-        <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 p-12 overflow-y-auto bg-slate-50 flex flex-col items-center gap-8 relative">
-            {isGenerating && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-6">
-                <div className="relative">
-                  <div className="w-20 h-20 border-8 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                  <div className="absolute inset-0 flex items-center justify-center font-black text-xs text-indigo-600">{progress ?? 0}%</div>
-                </div>
-                <div className="flex flex-col items-center text-center">
-                  <span className="text-slate-900 font-black uppercase tracking-[0.3em] text-sm">Forging Masterpiece</span>
-                  <span className="text-slate-400 text-xs font-bold mt-1 max-w-[200px]">Computing paths and assembling bundle...</span>
-                </div>
-              </div>
-            )}
+        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="flex flex-col items-center py-12 gap-8 px-12">
+            {isGenerating && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div><span className="font-black text-xs text-indigo-600 uppercase">Optimizing High-Res Frame {progress}%</span></div>}
             
-            <div className="bg-white p-16 shadow-[0_30px_100px_-10px_rgba(0,0,0,0.15)] rounded-lg border border-slate-200 relative max-w-[750px] w-full aspect-square flex items-center justify-center transform transition-transform duration-500 hover:scale-[1.01]">
-              <div className="absolute top-6 left-10 flex flex-col">
-                <span className="text-[12px] font-black text-slate-800 uppercase tracking-widest">{config.pdfHeader}</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5 tracking-tighter">Edition #{(config.seed.length % 999) + 1} • {config.difficulty} Mode</span>
+            <div className="flex flex-col lg:flex-row gap-10 items-start w-full max-w-6xl">
+              <div className="bg-white p-8 shadow-2xl rounded-3xl border flex-1 flex items-center justify-center overflow-hidden aspect-square"><canvas ref={canvasRef} className="max-w-full max-h-full shadow-lg" /></div>
+              <div className="lg:w-96 space-y-6">
+                <div className="bg-white p-8 rounded-3xl shadow-lg border border-indigo-50"><h4 className="text-[10px] font-black text-indigo-400 mb-2 uppercase">Challenge Story</h4><p className="text-lg font-medium text-slate-700 italic leading-relaxed">"{puzzle?.story}"</p></div>
+                <div className="bg-slate-900 p-8 rounded-3xl shadow-xl space-y-4">
+                  <h3 className="text-[11px] font-black uppercase text-indigo-400 tracking-widest border-b border-white/10 pb-4">Export Bundle</h3>
+                  <div className="bg-white/5 p-4 rounded-2xl space-y-4">
+                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-slate-400 uppercase">Quantity</label><input type="number" min="1" max="50" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value) || 1})} className="w-16 bg-white/10 border-white/10 border rounded-lg px-2 py-1 text-right text-indigo-400 font-bold" /></div>
+                    <div className="flex items-center gap-3 text-white"><input type="checkbox" id="progression" checked={config.enableProgression} onChange={e => setConfig({...config, enableProgression: e.target.checked})}/><label htmlFor="progression" className="text-xs font-bold text-slate-300">Smart Difficulty Curve</label></div>
+                    <div className="flex items-center gap-3 text-white"><input type="checkbox" id="varied" checked={config.randomizeShapes} onChange={e => setConfig({...config, randomizeShapes: e.target.checked})}/><label htmlFor="varied" className="text-xs font-bold text-slate-300">Varied Shapes</label></div>
+                  </div>
+                  <button onClick={downloadPDFPackage} className="w-full bg-indigo-600 text-white py-4 rounded-xl text-xs font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest">Download Bundle PDF</button>
+                  <p className="text-[9px] text-center text-slate-500 font-bold">INCLUDES PUZZLES & FULL SOLUTIONS</p>
+                </div>
               </div>
-              <canvas ref={canvasRef} className="max-w-full max-h-full h-auto w-auto" />
-              <div className="absolute bottom-6 right-10 flex items-center gap-4">
-                 <div className="text-right">
-                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{config.pdfFooter}</div>
-                    <div className="h-6 w-32 border-b-2 border-slate-100 italic text-[10px] text-slate-300 mt-1 pl-2">{config.pdfCredits}</div>
+            </div>
+
+            <section className="w-full max-w-6xl bg-white rounded-3xl shadow-xl border border-slate-100 p-10 space-y-12">
+              <div className="flex items-center justify-between border-b pb-6">
+                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Puzzle Generation Settings</h3>
+                 <div className="flex gap-4">
+                   {['easy', 'medium', 'hard'].map(d => (
+                     <button key={d} onClick={() => setConfig({...config, difficulty: d as Difficulty})} className={`px-6 py-2 text-[10px] font-black rounded-xl uppercase border transition-all ${config.difficulty === d ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'border-slate-100 text-slate-400 hover:border-slate-200'}`}>{d}</button>
+                   ))}
                  </div>
               </div>
-            </div>
 
-            <div className="w-full max-w-[750px] bg-indigo-900 text-white p-8 rounded-3xl shadow-2xl flex items-start gap-6 border-4 border-white">
-               <div className="bg-white/10 w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border border-white/20"><i className="fas fa-feather-pointed text-2xl text-indigo-300"></i></div>
-               <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h4 className="text-[11px] font-black uppercase tracking-widest text-indigo-300">Procedural Lore Engine</h4>
-                    <div className="h-px flex-1 bg-indigo-500/30"></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Structure</h4>
+                  
+                  {(config.generatorType === 'maze' || config.generatorType === 'maze2') && (
+                    <>
+                      <div className="space-y-4">
+                        <label className="text-xs font-bold text-slate-700">Grid Complexity ({config.size}x{config.size})</label>
+                        <input type="range" min="10" max="60" value={config.size} onChange={e => setConfig({...config, size: parseInt(e.target.value)})} className="w-full accent-indigo-600" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-xs font-bold text-slate-700">Boundary Shape</label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {SHAPES.map(s => (
+                            <button key={s.id} onClick={() => setConfig({...config, shape: s.id})} className={`p-3 rounded-xl border transition-all ${config.shape === s.id ? 'bg-indigo-50 border-indigo-600 text-indigo-600' : 'border-slate-100 text-slate-300 hover:bg-slate-50'}`}><i className={`fas ${s.icon}`}></i></button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {config.generatorType === 'sudoku' && (
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-700">Sudoku Format</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {[4, 9].map(sz => (
+                          <button key={sz} onClick={() => setConfig({...config, sudokuSize: sz})} className={`py-3 text-xs font-black rounded-xl border ${config.sudokuSize === sz ? 'bg-indigo-50 border-indigo-600 text-indigo-600' : 'border-slate-100'}`}>{sz}x{sz}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {config.generatorType === 'kenken' && (
+                    <div className="space-y-4">
+                      <label className="text-xs font-bold text-slate-700">Grid Size ({config.kenKenSize}x{config.kenKenSize})</label>
+                      <input type="range" min="3" max="8" value={config.kenKenSize} onChange={e => setConfig({...config, kenKenSize: parseInt(e.target.value)})} className="w-full accent-indigo-600" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Content</h4>
+                  
+                  {(config.generatorType === 'wordsearch' || config.generatorType === 'wordscramble' || config.generatorType === 'twistedword') && (
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-700">Vocabulary Source</label>
+                      <textarea value={config.words.join(', ')} onChange={e => setConfig({...config, words: e.target.value.split(',').map(w => w.trim())})} className="w-full h-32 text-xs p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono" />
+                    </div>
+                  )}
+
+                  {config.generatorType === 'cryptogram' && (
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-700">Quote To Encrypt</label>
+                      <textarea value={config.cryptogramSource} onChange={e => setConfig({...config, cryptogramSource: e.target.value})} className="w-full h-32 text-xs p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono" />
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-slate-700">Random Seed</label>
+                    <input type="text" value={config.seed} onChange={e => setConfig({...config, seed: e.target.value})} className="w-full px-4 py-3 text-sm border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-600" />
                   </div>
-                  <p className="text-lg font-medium leading-relaxed tracking-tight text-slate-100">{puzzle?.story}</p>
-               </div>
-            </div>
-          </div>
-
-          <aside className="w-80 bg-white border-l border-slate-200 overflow-y-auto p-8 space-y-10 shadow-2xl z-10">
-            <section className="space-y-6">
-              <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Configuration</h3>
-              
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Master Difficulty</label>
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
-                  {['easy', 'medium', 'hard'].map(d => (
-                    <button key={d} onClick={() => setConfig({...config, difficulty: d as Difficulty})} className={`flex-1 py-3 text-[10px] font-black rounded-xl transition-all duration-300 ${config.difficulty === d ? 'bg-white shadow-xl text-indigo-600 scale-105' : 'text-slate-400 hover:text-slate-600'}`}>
-                      {d.toUpperCase()}
-                    </button>
-                  ))}
                 </div>
-              </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <span>Complexity Scale</span>
-                  <span className="text-indigo-600 font-black">{config.size}x{config.size}</span>
-                </div>
-                <input type="range" min="10" max="60" step="5" value={config.size} onChange={e => setConfig({...config, size: parseInt(e.target.value)})} className="w-full h-1.5 bg-slate-100 appearance-none rounded-lg accent-indigo-600 cursor-pointer" />
-              </div>
-
-              {(config.generatorType === 'maze' || config.generatorType === 'maze2') && (
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Silhouette Geometry</label>
-                  <div className="grid grid-cols-5 gap-2 h-32 overflow-y-auto pr-2 custom-scrollbar">
-                    {SHAPES.map(s => (
-                      <button 
-                        key={s.id} 
-                        onClick={() => setConfig({...config, shape: s.id})} 
-                        title={s.id}
-                        className={`aspect-square rounded-xl border-2 flex items-center justify-center transition-all duration-200 ${config.shape === s.id ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-lg' : 'border-slate-100 text-slate-300 hover:border-slate-200'}`}
-                      >
-                        <i className={`fas ${s.icon} text-sm`}></i>
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aesthetics</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {MAZE_THEMES.map(t => (
+                      <button key={t.id} onClick={() => { setConfig({...config, themeId: t.id}); setIsInkSaver(false); }} className={`p-4 rounded-2xl border-2 text-left transition-all ${config.themeId === t.id && !isInkSaver ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-50 hover:border-slate-100'}`}>
+                        <div className="w-full h-8 rounded-lg mb-2 shadow-inner border border-black/5" style={{ backgroundColor: t.wallColor }} />
+                        <span className="text-[10px] font-black uppercase text-slate-600 block">{t.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-              )}
-            </section>
-
-            <section className="space-y-6">
-              <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4 flex items-center justify-between">
-                <span>Branding</span>
-                <i className="fas fa-fingerprint text-indigo-500"></i>
-              </h3>
-              <div className="space-y-4">
-                {[
-                  { label: 'PDF Header', key: 'pdfHeader', icon: 'fa-heading' },
-                  { label: 'PDF Footer', key: 'pdfFooter', icon: 'fa-shoe-prints' },
-                  { label: 'PDF Credits / Copyright', key: 'pdfCredits', icon: 'fa-copyright' }
-                ].map(field => (
-                  <div key={field.key} className="space-y-1.5">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <i className={`fas ${field.icon} text-[8px]`}></i> {field.label}
-                    </span>
-                    <input 
-                      type="text" 
-                      value={(config as any)[field.key]} 
-                      onChange={e => setConfig({...config, [field.key]: e.target.value} as any)}
-                      placeholder={`Enter ${field.label}...`}
-                      className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold text-slate-700 transition-all" 
-                    />
-                  </div>
-                ))}
               </div>
             </section>
-
-            <section className="space-y-6">
-              <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em] border-b pb-4">Theme Engine</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {MAZE_THEMES.map(t => (
-                  <button key={t.id} onClick={() => setConfig({...config, themeId: t.id})} className={`group flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all duration-300 ${config.themeId === t.id ? 'border-indigo-600 bg-indigo-50 shadow-xl' : 'border-slate-50 hover:border-slate-200'}`}>
-                    <div className="w-full h-12 rounded-xl shadow-inner flex items-center justify-center overflow-hidden" style={{ backgroundColor: t.wallColor }}>
-                       <div className="w-full h-full opacity-10 flex items-center justify-center transform group-hover:scale-110 transition-transform">
-                        <i className={`fas ${t.icon} text-white text-2xl`}></i>
-                       </div>
-                    </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest transition-colors ${config.themeId === t.id ? 'text-indigo-700' : 'text-slate-500'}`}>{t.name}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-4 pt-4 pb-8">
-               <h3 className="text-[11px] font-black uppercase text-slate-900 tracking-[0.2em]">Batch & Format</h3>
-               <div className="grid grid-cols-1 gap-3">
-                  <div className="flex justify-between items-center bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-emerald-800 uppercase">Quantity</span>
-                      <input type="number" min="1" max="50" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value) || 1})} className="w-12 bg-transparent text-emerald-700 font-black outline-none" />
-                    </div>
-                    <button onClick={downloadPDF} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black hover:bg-emerald-700 shadow-lg shadow-emerald-100">DOWNLOAD PDF</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => downloadImage('png')} className="flex items-center justify-center gap-3 px-4 py-4 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black hover:bg-slate-200 transition-all">PNG</button>
-                    <button onClick={() => downloadImage('jpeg')} className="flex items-center justify-center gap-3 px-4 py-4 bg-slate-100 text-slate-900 rounded-2xl text-[10px] font-black hover:bg-slate-200 transition-all">JPEG</button>
-                  </div>
-               </div>
-            </section>
-          </aside>
+          </div>
         </div>
       </main>
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-      `}</style>
+      <footer className="fixed bottom-6 left-6 z-50 pointer-events-none">
+        <div className="bg-slate-900/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
+          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">© 2025 PuzzlesPrints Engine • 300 DPI Export Ready</span>
+        </div>
+      </footer>
+      <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }`}</style>
     </div>
   );
 };

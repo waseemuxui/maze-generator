@@ -95,24 +95,22 @@ const App: React.FC = () => {
 
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
-    const data = generatePuzzle(config);
-    const storyText = await generateMazeStory(config);
-    setPuzzle({ ...data, story: storyText } as GeneratedPuzzle);
-    setIsGenerating(false);
+    try {
+      const data = generatePuzzle(config);
+      const storyText = await generateMazeStory(config);
+      setPuzzle({ ...data, story: storyText } as GeneratedPuzzle);
+    } catch (err) {
+      console.error("Generation failed", err);
+    } finally {
+      setIsGenerating(false);
+    }
   }, [config]);
 
   useEffect(() => { 
     handleGenerate(); 
-  }, [
-    config.generatorType, config.shape, config.difficulty, config.size, 
-    config.sudokuSize, config.kenKenSize, config.magicSquareSize, 
-    config.gridSize, config.words, config.starBattleSize, config.starBattleStars,
-    config.kakuroDensity, config.crosswordDensity, config.bingoGridSize,
-    config.tartanStripeCount, config.bauhausShapeCount, config.bauhausStyle,
-    config.bridgesIslandCount, config.cryptogramSource, config.mazeBraidChance
-  ]);
+  }, [handleGenerate]);
 
-  const drawToCanvas = (ctx: CanvasRenderingContext2D, p: GeneratedPuzzle, cfg: AppConfig, theme: MazeTheme, forceSolution: boolean, isForPrint: boolean = false) => {
+  const drawToCanvas = useCallback((ctx: CanvasRenderingContext2D, p: GeneratedPuzzle, cfg: AppConfig, theme: MazeTheme, forceSolution: boolean, isForPrint: boolean = false) => {
     const scale = isForPrint ? 4 : 2; 
     ctx.fillStyle = theme.bgColor;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -167,7 +165,7 @@ const App: React.FC = () => {
         }
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (canvasRef.current && puzzle) {
@@ -178,7 +176,7 @@ const App: React.FC = () => {
         drawToCanvas(ctx, puzzle, config, currentTheme, currentView === 'solution');
       }
     }
-  }, [puzzle, currentTheme, currentView, config]);
+  }, [puzzle, currentTheme, currentView, config, drawToCanvas]);
 
   const downloadPDFPackage = async () => {
     setIsGenerating(true);
@@ -222,7 +220,6 @@ const App: React.FC = () => {
     const finalTheme = isInkSaver ? PRINT_READY_THEME : currentTheme;
     const finalAccent = isInkSaver ? '#000000' : config.pdfAccentColor;
 
-    // Puzzle Pages
     for (let i = 0; i < batch.length; i++) {
         if (i > 0) doc.addPage();
         const p = batch[i];
@@ -231,7 +228,6 @@ const App: React.FC = () => {
         doc.addImage(tempCanvas.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin + 30, contentWidth, contentWidth);
     }
 
-    // Solution Pages
     for (let i = 0; i < batch.length; i++) {
         doc.addPage();
         const p = batch[i];
@@ -283,28 +279,33 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar">
+        <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar relative">
           <div className="flex flex-col items-center py-12 gap-8 px-12">
-            {isGenerating && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div><span className="font-black text-xs text-indigo-600 uppercase">Optimizing High-Res Frame {progress}%</span></div>}
+            {isGenerating && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div><span className="font-black text-xs text-indigo-600 uppercase tracking-widest">AI Generating {progress ?? ''}%</span></div>}
             
             <div className="flex flex-col lg:flex-row gap-10 items-start w-full max-w-6xl">
-              <div className="bg-white p-8 shadow-2xl rounded-3xl border flex-1 flex items-center justify-center overflow-hidden aspect-square"><canvas ref={canvasRef} className="max-w-full max-h-full shadow-lg" /></div>
+              <div className="bg-white p-8 shadow-2xl rounded-3xl border flex-1 flex items-center justify-center overflow-hidden aspect-square">
+                <canvas ref={canvasRef} className="max-w-full max-h-full rounded-xl shadow-lg border border-slate-100" />
+              </div>
               <div className="lg:w-96 space-y-6">
-                <div className="bg-white p-8 rounded-3xl shadow-lg border border-indigo-50"><h4 className="text-[10px] font-black text-indigo-400 mb-2 uppercase">Challenge Story</h4><p className="text-lg font-medium text-slate-700 italic leading-relaxed">"{puzzle?.story}"</p></div>
+                <div className="bg-white p-8 rounded-3xl shadow-lg border border-indigo-50">
+                  <h4 className="text-[10px] font-black text-indigo-400 mb-2 uppercase tracking-widest">AI Puzzle Lore</h4>
+                  <p className="text-lg font-medium text-slate-700 italic leading-relaxed">"{puzzle?.story || 'The story unfolds as you prepare to solve...'}"</p>
+                </div>
                 <div className="bg-slate-900 p-8 rounded-3xl shadow-xl space-y-4">
                   <h3 className="text-[11px] font-black uppercase text-indigo-400 tracking-widest border-b border-white/10 pb-4">Export Bundle</h3>
                   <div className="bg-white/5 p-4 rounded-2xl space-y-4">
-                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-slate-400 uppercase">Quantity</label><input type="number" min="1" max="50" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value) || 1})} className="w-16 bg-white/10 border-white/10 border rounded-lg px-2 py-1 text-right text-indigo-400 font-bold" /></div>
-                    <div className="flex items-center gap-3 text-white"><input type="checkbox" id="progression" checked={config.enableProgression} onChange={e => setConfig({...config, enableProgression: e.target.checked})}/><label htmlFor="progression" className="text-xs font-bold text-slate-300">Smart Difficulty Curve</label></div>
+                    <div className="flex justify-between items-center"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quantity</label><input type="number" min="1" max="50" value={config.bulkCount} onChange={e => setConfig({...config, bulkCount: parseInt(e.target.value) || 1})} className="w-16 bg-white/10 border-white/10 border rounded-lg px-2 py-1 text-right text-indigo-400 font-bold" /></div>
+                    <div className="flex items-center gap-3 text-white"><input type="checkbox" id="progression" checked={config.enableProgression} onChange={e => setConfig({...config, enableProgression: e.target.checked})}/><label htmlFor="progression" className="text-xs font-bold text-slate-300">Smart Difficulty</label></div>
                     <div className="flex items-center gap-3 text-white"><input type="checkbox" id="varied" checked={config.randomizeShapes} onChange={e => setConfig({...config, randomizeShapes: e.target.checked})}/><label htmlFor="varied" className="text-xs font-bold text-slate-300">Varied Shapes</label></div>
                   </div>
                   <button onClick={downloadPDFPackage} className="w-full bg-indigo-600 text-white py-4 rounded-xl text-xs font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest">Download Bundle PDF</button>
-                  <p className="text-[9px] text-center text-slate-500 font-bold">INCLUDES PUZZLES & FULL SOLUTIONS</p>
+                  <p className="text-[9px] text-center text-slate-500 font-bold tracking-widest uppercase">Answers Included at End</p>
                 </div>
               </div>
             </div>
 
-            <section className="w-full max-w-6xl bg-white rounded-3xl shadow-xl border border-slate-100 p-10 space-y-12">
+            <section className="w-full max-w-6xl bg-white rounded-3xl shadow-xl border border-slate-100 p-10 space-y-12 mb-12">
               <div className="flex items-center justify-between border-b pb-6">
                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Puzzle Generation Settings</h3>
                  <div className="flex gap-4">
@@ -317,24 +318,22 @@ const App: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Structure</h4>
-                  
                   {(config.generatorType === 'maze' || config.generatorType === 'maze2') && (
                     <>
                       <div className="space-y-4">
-                        <label className="text-xs font-bold text-slate-700">Grid Complexity ({config.size}x{config.size})</label>
+                        <label className="text-xs font-bold text-slate-700">Complexity ({config.size})</label>
                         <input type="range" min="10" max="60" value={config.size} onChange={e => setConfig({...config, size: parseInt(e.target.value)})} className="w-full accent-indigo-600" />
                       </div>
                       <div className="space-y-3">
                         <label className="text-xs font-bold text-slate-700">Boundary Shape</label>
                         <div className="grid grid-cols-5 gap-2">
                           {SHAPES.map(s => (
-                            <button key={s.id} onClick={() => setConfig({...config, shape: s.id})} className={`p-3 rounded-xl border transition-all ${config.shape === s.id ? 'bg-indigo-50 border-indigo-600 text-indigo-600' : 'border-slate-100 text-slate-300 hover:bg-slate-50'}`}><i className={`fas ${s.icon}`}></i></button>
+                            <button key={s.id} onClick={() => setConfig({...config, shape: s.id})} className={`p-3 rounded-xl border transition-all ${config.shape === s.id ? 'bg-indigo-50 border-indigo-600 text-indigo-600 shadow-sm' : 'border-slate-100 text-slate-300 hover:bg-slate-50'}`}><i className={`fas ${s.icon}`}></i></button>
                           ))}
                         </div>
                       </div>
                     </>
                   )}
-
                   {config.generatorType === 'sudoku' && (
                     <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-700">Sudoku Format</label>
@@ -345,36 +344,20 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {config.generatorType === 'kenken' && (
-                    <div className="space-y-4">
-                      <label className="text-xs font-bold text-slate-700">Grid Size ({config.kenKenSize}x{config.kenKenSize})</label>
-                      <input type="range" min="3" max="8" value={config.kenKenSize} onChange={e => setConfig({...config, kenKenSize: parseInt(e.target.value)})} className="w-full accent-indigo-600" />
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Content</h4>
-                  
-                  {(config.generatorType === 'wordsearch' || config.generatorType === 'wordscramble' || config.generatorType === 'twistedword') && (
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-slate-700">Seed String</label>
+                    <input type="text" value={config.seed} onChange={e => setConfig({...config, seed: e.target.value})} className="w-full px-4 py-3 text-sm border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-600 uppercase" placeholder="RANDOM_SEED" />
+                  </div>
+                  {(config.generatorType === 'wordsearch' || config.generatorType === 'wordscramble') && (
                     <div className="space-y-3">
-                      <label className="text-xs font-bold text-slate-700">Vocabulary Source</label>
+                      <label className="text-xs font-bold text-slate-700">Vocabulary (CSV)</label>
                       <textarea value={config.words.join(', ')} onChange={e => setConfig({...config, words: e.target.value.split(',').map(w => w.trim())})} className="w-full h-32 text-xs p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono" />
                     </div>
                   )}
-
-                  {config.generatorType === 'cryptogram' && (
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-slate-700">Quote To Encrypt</label>
-                      <textarea value={config.cryptogramSource} onChange={e => setConfig({...config, cryptogramSource: e.target.value})} className="w-full h-32 text-xs p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-mono" />
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    <label className="text-xs font-bold text-slate-700">Random Seed</label>
-                    <input type="text" value={config.seed} onChange={e => setConfig({...config, seed: e.target.value})} className="w-full px-4 py-3 text-sm border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-indigo-600" />
-                  </div>
                 </div>
 
                 <div className="space-y-6">
@@ -394,11 +377,10 @@ const App: React.FC = () => {
         </div>
       </main>
       <footer className="fixed bottom-6 left-6 z-50 pointer-events-none">
-        <div className="bg-slate-900/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
-          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">© 2025 PuzzlesPrints Engine • 300 DPI Export Ready</span>
+        <div className="bg-slate-900/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-sm">
+          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">© 2025 PuzzlesPrints Engine • v2.0 AI Optimized</span>
         </div>
       </footer>
-      <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }`}</style>
     </div>
   );
 };

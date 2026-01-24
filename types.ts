@@ -1,4 +1,3 @@
-
 export type GeneratorType = 
   | 'maze' | 'maze2' | 'bingo' | 'crossword' | 'kenken' 
   | 'magicsquare' | 'starbattle' | 'sudoku' | 'tartan' 
@@ -11,7 +10,7 @@ export type ThemeId = 'classic' | 'nightmare' | 'enchanted' | 'cyberpunk' | 'par
 export type PdfPageSize = 'a4' | 'letter' | 'legal';
 export type PdfOrientation = 'portrait' | 'landscape';
 export type PdfFont = 'helvetica' | 'courier' | 'times';
-export type PdfBorderStyle = 'none' | 'modern' | 'playful' | 'stars' | 'wavy' | 'dashed';
+export type PdfBorderStyle = 'none' | 'modern' | 'playful' | 'stars' | 'wavy' | 'dashed' | 'dotted' | 'double' | 'floral';
 
 export interface MazeTheme {
   id: ThemeId;

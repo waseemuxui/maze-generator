@@ -63,6 +63,18 @@ const SHAPES: { id: MazeShape; icon: string }[] = [
   { id: 'cross', icon: 'fa-plus' },
 ];
 
+const BORDER_STYLES: { id: PdfBorderStyle; icon: string; label: string }[] = [
+  { id: 'none', icon: 'fa-slash', label: 'No Border' },
+  { id: 'modern', icon: 'fa-square', label: 'Modern' },
+  { id: 'playful', icon: 'fa-shapes', label: 'Playful' },
+  { id: 'dashed', icon: 'fa-grip-lines', label: 'Dashed' },
+  { id: 'dotted', icon: 'fa-ellipsis', label: 'Dotted' },
+  { id: 'double', icon: 'fa-equals', label: 'Double' },
+  { id: 'wavy', icon: 'fa-wave-square', label: 'Wavy' },
+  { id: 'stars', icon: 'fa-star', label: 'Stars' },
+  { id: 'floral', icon: 'fa-leaf', label: 'Floral' },
+];
+
 const App: React.FC = () => {
   const [config, setConfig] = useState<AppConfig>({
     generatorType: 'maze', size: 20, cellSize: 25, difficulty: 'medium', shape: 'square', themeId: 'cartoon', seed: 'PUZZLE',
@@ -206,7 +218,81 @@ const App: React.FC = () => {
         setProgress(Math.round(((i + 1) / (config.bulkCount * 2)) * 100));
     }
 
+    const drawBorder = (doc: any, pw: number, ph: number, margin: number, style: PdfBorderStyle, color: string) => {
+      const bx = margin / 2;
+      const by = margin / 2;
+      const bw = pw - margin;
+      const bh = ph - margin;
+      
+      doc.setDrawColor(color);
+      doc.setLineWidth(0.5);
+      doc.setLineDash([]);
+
+      if (style === 'modern') {
+        doc.rect(bx, by, bw, bh);
+      } else if (style === 'playful') {
+        doc.setLineWidth(1.5);
+        doc.roundedRect(bx, by, bw, bh, 5, 5);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(bx + 1, by + 1, bw - 2, bh - 2, 4, 4);
+      } else if (style === 'dashed') {
+        doc.setLineDash([3, 3]);
+        doc.rect(bx, by, bw, bh);
+      } else if (style === 'dotted') {
+        doc.setLineDash([1, 2]);
+        doc.rect(bx, by, bw, bh);
+      } else if (style === 'double') {
+        doc.rect(bx, by, bw, bh);
+        doc.rect(bx + 1.5, by + 1.5, bw - 3, bh - 3);
+      } else if (style === 'wavy') {
+        const step = 5;
+        const wave = 2;
+        // Top
+        for (let x = bx; x < bx + bw; x += step) {
+          doc.line(x, by, x + step / 2, by - wave);
+          doc.line(x + step / 2, by - wave, x + step, by);
+        }
+        // Bottom
+        for (let x = bx; x < bx + bw; x += step) {
+          doc.line(x, by + bh, x + step / 2, by + bh + wave);
+          doc.line(x + step / 2, by + bh + wave, x + step, by + bh);
+        }
+        // Sides
+        for (let y = by; y < by + bh; y += step) {
+          doc.line(bx, y, bx - wave, y + step / 2);
+          doc.line(bx - wave, y + step / 2, bx, y + step);
+          doc.line(bx + bw, y, bx + bw + wave, y + step / 2);
+          doc.line(bx + bw + wave, y + step / 2, bx + bw, y + step);
+        }
+      } else if (style === 'stars') {
+        doc.setFontSize(10);
+        const starStep = 8;
+        for (let x = bx; x <= bx + bw; x += starStep) {
+          doc.text('*', x, by + 1);
+          doc.text('*', x, by + bh + 1);
+        }
+        for (let y = by + starStep; y < by + bh; y += starStep) {
+          doc.text('*', bx, y + 1);
+          doc.text('*', bx + bw - 1, y + 1);
+        }
+      } else if (style === 'floral') {
+        doc.setFontSize(12);
+        const leafStep = 15;
+        for (let x = bx; x <= bx + bw; x += leafStep) {
+          doc.text('~', x, by + 1);
+          doc.text('~', x, by + bh + 1);
+        }
+        for (let y = by + leafStep; y < by + bh; y += leafStep) {
+          doc.text('|', bx, y + 1);
+          doc.text('|', bx + bw - 1, y + 1);
+        }
+      }
+    };
+
     const drawPageDecor = (title: string, pNum: number, color: string, isSolution: boolean = false) => {
+        if (config.pdfBorderStyle !== 'none') {
+          drawBorder(doc, pw, ph, margin, config.pdfBorderStyle, color);
+        }
         doc.setFont(config.pdfFont, 'bold');
         doc.setFontSize(9); doc.setTextColor('#94a3b8');
         doc.text(config.pdfHeader, pw / 2, margin + 5, { align: 'center' });
@@ -362,13 +448,29 @@ const App: React.FC = () => {
 
                 <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aesthetics</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    {MAZE_THEMES.map(t => (
-                      <button key={t.id} onClick={() => { setConfig({...config, themeId: t.id}); setIsInkSaver(false); }} className={`p-4 rounded-2xl border-2 text-left transition-all ${config.themeId === t.id && !isInkSaver ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-50 hover:border-slate-100'}`}>
-                        <div className="w-full h-8 rounded-lg mb-2 shadow-inner border border-black/5" style={{ backgroundColor: t.wallColor }} />
-                        <span className="text-[10px] font-black uppercase text-slate-600 block">{t.name}</span>
-                      </button>
-                    ))}
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-700">PDF Page Border</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {BORDER_STYLES.map(b => (
+                          <button key={b.id} onClick={() => setConfig({...config, pdfBorderStyle: b.id})} className={`p-2 rounded-xl border text-center transition-all ${config.pdfBorderStyle === b.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'border-slate-100 text-slate-400 hover:bg-slate-50'}`}>
+                            <i className={`fas ${b.icon} block mb-1`}></i>
+                            <span className="text-[8px] font-bold uppercase">{b.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold text-slate-700">Display Theme</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {MAZE_THEMES.map(t => (
+                          <button key={t.id} onClick={() => { setConfig({...config, themeId: t.id}); setIsInkSaver(false); }} className={`p-4 rounded-2xl border-2 text-left transition-all ${config.themeId === t.id && !isInkSaver ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-50 hover:border-slate-100'}`}>
+                            <div className="w-full h-8 rounded-lg mb-2 shadow-inner border border-black/5" style={{ backgroundColor: t.wallColor }} />
+                            <span className="text-[10px] font-black uppercase text-slate-600 block">{t.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
